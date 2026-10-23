@@ -3,7 +3,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/yoyo636/poly-runner?style=social)](https://github.com/yoyo636/poly-runner/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/yoyo636/poly-runner?style=social)](https://github.com/yoyo636/poly-runner/network/members)
 [![GitHub issues](https://img.shields.io/github/issues/yoyo636/poly-runner?style=flat)](https://github.com/yoyo636/poly-runner/issues)
-[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=local-dev.poly-runner)
+[![Release](https://img.shields.io/badge/下载-v1.0.0%20Beta-blue?style=flat-square)](https://github.com/yoyo636/poly-runner/releases/tag/v1.0.0-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > **Beta 版**：功能已经跑通，但接口和默认行为还可能调整，欢迎试用并反馈。
