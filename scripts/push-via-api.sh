@@ -43,7 +43,9 @@ PARENTS="[]"
 if gh api "/repos/$REPO/git/refs/heads/main" --jq .object.sha > "$WORK/head.txt" 2>/dev/null; then
   PARENTS="[\"$(cat "$WORK/head.txt")\"]"
 fi
-jq -n --arg tree "$TREE_SHA" --argjson parents "$PARENTS" --arg msg "$(cat ".commit_msg.tmp" 2>/dev/null || echo 'feat: Poly Runner v1.0.0 (Beta)')" \
+# 提交信息默认取本地 HEAD 的完整 message，可用 POLY_COMMIT_MSG 覆盖
+MSG="${POLY_COMMIT_MSG:-$(git log -1 --pretty=%B)}"
+jq -n --arg tree "$TREE_SHA" --argjson parents "$PARENTS" --arg msg "$MSG" \
   '{message:$msg, tree:$tree, parents:$parents}' > "$WORK/commit_body.json"
 COMMIT_SHA="$(gh api --method POST "/repos/$REPO/git/commits" --input "$WORK/commit_body.json" --jq .sha)"
 echo "    commit=$COMMIT_SHA"
