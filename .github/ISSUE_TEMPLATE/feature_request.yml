@@ -1,0 +1,58 @@
+name: 💡 功能建议 / 加一种语言
+description: 建议新功能，或者贡献一种语言的运行命令
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **加一种语言只要几行！** 见下方「贡献一种语言」说明，或者直接提 issue 我们帮你加。
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 这是什么类型的建议
+      options:
+        - 加一种语言的运行命令
+        - 新功能
+        - 改进现有行为
+        - 文档 / 示例
+    validations:
+      required: true
+
+  - type: input
+    id: language
+    attributes:
+      label: 涉及的语言
+      placeholder: 例如 Zig / Elixir / 某公司的 DSL
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: 你希望执行的命令
+      description: |
+        你希望在终端里看到的那条命令，例如：
+
+        ```bash
+        zig run {{file}} {{args}}
+        ```
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么需要它
+      description: 现在的默认命令哪里不合适？
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: 参与方式
+      options:
+        - label: 我愿意自己提 PR（加到 src/languages.ts 就行）
+        - label: 请帮我加

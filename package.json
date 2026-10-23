@@ -1,0 +1,353 @@
+{
+  "name": "poly-runner",
+  "displayName": "Poly Runner (Beta) — 多语言运行器",
+  "description": "在 VS Code 里一键编译并运行任意语言的代码：把一条真实的 shell 命令敲进集成终端，由系统 shell 调用系统编译器 / 解释器完成编译与运行。（Beta 版）",
+  "version": "1.0.0",
+  "publisher": "local-dev",
+  "license": "MIT",
+  "icon": "resources/icon.png",
+  "engines": {
+    "vscode": "^1.75.0",
+    "node": ">=16"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "run",
+    "compile",
+    "execute",
+    "runner",
+    "terminal",
+    "c++",
+    "python",
+    "java",
+    "go",
+    "rust"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:cpp",
+    "onLanguage:c",
+    "onLanguage:python",
+    "onLanguage:java",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:go",
+    "onLanguage:rust",
+    "onLanguage:shellscript",
+    "onLanguage:ruby",
+    "onLanguage:php"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "polyRunner.runFile",
+        "title": "运行当前文件",
+        "category": "Poly Runner",
+        "icon": "$(play)"
+      },
+      {
+        "command": "polyRunner.runSelection",
+        "title": "运行选中的代码",
+        "category": "Poly Runner",
+        "icon": "$(play-circle)"
+      },
+      {
+        "command": "polyRunner.runInTerminal",
+        "title": "在集成终端运行当前文件",
+        "category": "Poly Runner",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "polyRunner.runInOutput",
+        "title": "在输出面板运行当前文件",
+        "category": "Poly Runner",
+        "icon": "$(output)"
+      },
+      {
+        "command": "polyRunner.stop",
+        "title": "停止正在运行的程序",
+        "category": "Poly Runner",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "polyRunner.openTerminal",
+        "title": "打开运行终端",
+        "category": "Poly Runner",
+        "icon": "$(terminal-new)"
+      },
+      {
+        "command": "polyRunner.selectLanguage",
+        "title": "选择该文件的运行方式",
+        "category": "Poly Runner",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "polyRunner.editCommand",
+        "title": "编辑当前语言的运行命令",
+        "category": "Poly Runner",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "polyRunner.copyCommand",
+        "title": "复制当前文件的运行命令",
+        "category": "Poly Runner",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "polyRunner.showOutput",
+        "title": "显示运行输出",
+        "category": "Poly Runner",
+        "icon": "$(output)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "polyRunner.runFile",
+          "when": "editorLangId != markdown-preview",
+          "group": "navigation"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "polyRunner.runFile",
+          "when": "editorLangId != markdown-preview",
+          "group": "1_run@1"
+        },
+        {
+          "command": "polyRunner.runSelection",
+          "when": "editorLangId != markdown-preview",
+          "group": "2_run_selection@2"
+        },
+        {
+          "command": "polyRunner.runInOutput",
+          "when": "editorLangId != markdown-preview",
+          "group": "3_run_output@3"
+        },
+        {
+          "command": "polyRunner.selectLanguage",
+          "when": "editorLangId != markdown-preview",
+          "group": "4_select_language@4"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "polyRunner.runFile",
+          "when": "editorLangId != markdown-preview",
+          "group": "navigation@100"
+        },
+        {
+          "command": "polyRunner.runSelection",
+          "when": "editorLangId != markdown-preview",
+          "group": "navigation@101"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "polyRunner.runFile",
+          "group": "navigation@100"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "polyRunner.runFile",
+          "when": "editorLangId != markdown-preview"
+        },
+        {
+          "command": "polyRunner.runSelection",
+          "when": "editorLangId != markdown-preview"
+        },
+        {
+          "command": "polyRunner.runInTerminal",
+          "when": "editorLangId != markdown-preview"
+        },
+        {
+          "command": "polyRunner.runInOutput",
+          "when": "editorLangId != markdown-preview"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "polyRunner.runFile",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n"
+      },
+      {
+        "command": "polyRunner.runSelection",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m"
+      },
+      {
+        "command": "polyRunner.runInOutput",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b"
+      },
+      {
+        "command": "polyRunner.stop",
+        "key": "ctrl+alt+.",
+        "mac": "cmd+alt+."
+      },
+      {
+        "command": "polyRunner.openTerminal",
+        "key": "ctrl+alt+o",
+        "mac": "cmd+alt+o"
+      }
+    ],
+    "configuration": {
+      "title": "Poly Runner",
+      "properties": {
+        "polyRunner.customCommands": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "按语言覆盖运行命令。键是 VS Code language id，值是命令模板。可用变量：`{{file}}` `{{fileNoExt}}` `{{fileName}}` `{{basename}}` `{{dir}}` `{{workspaceFolder}}` `{{relativeFile}}` `{{tmpFile}}` `{{out}}` `{{compiler}}` `{{std}}` `{{warnings}}` `{{args}}` `{{className}}`。路径类变量由插件自动加引号。",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "examples": [
+            {
+              "python": "python3 -u {{file}} {{args}}",
+              "cpp": "{{compiler}} -std={{std}} {{file}} -o {{out}} && {{out}}",
+              "javascript": "node {{file}} {{args}}"
+            }
+          ]
+        },
+        "polyRunner.customCommandsByExtension": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "按文件扩展名覆盖运行命令，键形如 `.py`。优先级低于 `polyRunner.customCommands`。",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "polyRunner.languageAliases": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "把某个扩展名或语言 id 绑定到指定的运行语言。键可以是 `.ext` 或 language id，值是 language id（如 `cpp`、`python`、`java`）。",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "polyRunner.compiler": {
+          "type": "string",
+          "default": "",
+          "description": "C/C++ 编译器路径或命令名。留空表示自动探测（优先 g++，其次 clang++，最后 cl.exe）。"
+        },
+        "polyRunner.cppStandard": {
+          "type": "string",
+          "default": "c++17",
+          "enum": [
+            "c++11",
+            "c++14",
+            "c++17",
+            "c++20",
+            "c++23"
+          ],
+          "description": "C++ 标准版本，对应模板变量 {{std}}。"
+        },
+        "polyRunner.additionalCompilerArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "追加给编译器的额外参数，例如 `-O2`、`-g`、`-fsanitize=address`。"
+        },
+        "polyRunner.runArguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "运行程序时附加的参数，对应模板变量 {{args}}。"
+        },
+        "polyRunner.executeInTerminal": {
+          "type": "boolean",
+          "default": true,
+          "description": "true=把命令敲进集成终端执行（可交互）；false=在输出面板执行并捕获输出。"
+        },
+        "polyRunner.saveBeforeRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "运行前自动保存未保存的修改。"
+        },
+        "polyRunner.clearOutputBeforeRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "在集成终端执行前先清屏。"
+        },
+        "polyRunner.focusTerminalAfterRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "运行后是否把焦点切到集成终端。"
+        },
+        "polyRunner.showCommandInOutput": {
+          "type": "boolean",
+          "default": true,
+          "description": "在输出面板记录实际执行的命令行。"
+        },
+        "polyRunner.timeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "输出面板模式下的执行超时（毫秒），超时后终止进程。"
+        },
+        "polyRunner.defaultLanguage": {
+          "type": "string",
+          "default": "",
+          "description": "识别不出语言时的兜底 languageId。"
+        },
+        "polyRunner.terminalCwd": {
+          "type": "string",
+          "default": "",
+          "description": "执行工作目录。留空则使用源文件所在目录。"
+        },
+        "polyRunner.useTempFileForSelection": {
+          "type": "boolean",
+          "default": true,
+          "description": "运行选中的代码时是否先写入临时文件（编译型语言需要）。"
+        },
+        "polyRunner.runOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "保存文件时自动运行。"
+        },
+        "polyRunner.showWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "开启编译器警告（g++/clang++ 使用 -Wall，MSVC 使用 /W3）。"
+        },
+        "polyRunner.outputDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "编译产物输出目录（只对编译型语言生效）。留空则使用扩展的全局存储目录，不会在项目里留下垃圾文件。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit -p ./",
+    "test": "node --test test/extension.test.js",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/vscode": "^1.75.0",
+    "@vscode/vsce": "^2.32.0",
+    "typescript": "^5.5.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yoyo636/poly-runner.git"
+  },
+  "preview": true,
+  "bugs": {
+    "url": "https://github.com/yoyo636/poly-runner/issues"
+  },
+  "homepage": "https://github.com/yoyo636/poly-runner#readme"
+}

@@ -1,0 +1,77 @@
+name: 🐛 问题反馈
+description: 报告一个 Poly Runner 的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请先确认一下最新版是否仍有问题。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 描述你看到的现象
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: 插件生成并执行的命令
+      description: 「Poly Runner: 复制当前文件的运行命令」可以拿到它
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: language
+    attributes:
+      label: 涉及的语言 / 文件类型
+      placeholder: 例如 Python / .py
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 执行通道
+      options:
+        - 集成终端
+        - 输出面板
+        - 两者都有问题
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你期望的行为
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 系统与版本
+      placeholder: macOS 15.3 / Windows 11 / Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 输出面板日志
+      description: 「Poly Runner: 显示运行输出」里的内容
+      render: shell

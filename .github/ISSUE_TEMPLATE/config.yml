@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 闲聊 / 想法 / 提问
+    url: https://github.com/yoyo636/poly-runner/discussions
+    about: 任何想法、建议、吐槽都欢迎来这里聊
+  - name: 🐛 遇到 Bug？
+    url: https://github.com/yoyo636/poly-runner/issues/new?template=bug_report.yml
+    about: 报告问题请用 Bug 模板，方便复现
+  - name: 💡 加一种语言 / 要新功能
+    url: https://github.com/yoyo636/poly-runner/issues/new?template=feature_request.yml
+    about: 提需求请用功能模板
