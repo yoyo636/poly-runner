@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.0.2
+
+**大型工程版**：补齐 C++ / CMake 大型工程的运行能力。
+
+### 新增
+
+- **编译数据库支持**：自动查找 `compile_commands.json`（`build/`、`out/`、`cmake-build-*` 等常见位置），用里面**真实的编译参数**编译当前文件 —— 项目的 include 路径、宏定义、C++ 标准版本一个都不漏。
+  - `link` 模式（默认）：自动收集同 target 的所有源文件一起编译链接，产出可执行文件并运行，产物放在项目内 `.poly-runner/bin/`。
+  - `object` 模式：只把当前文件编译成 `.o`，做语法检查。
+- **CMake 构建 → 跑产物**：识别 `CMakeLists.txt` 后自动「配置 → 构建 → 运行产物」串成一条命令；已配置过且已导出编译数据库时自动跳过重复 configure。
+  构建产物位置按 CMake 生成器推断（多配置生成器会多一层 `Debug/`/`Release/`）。
+- **多目标 / 多脚本选择**：CMake 有多个 `add_executable`、npm 有多个 script 时，弹窗让你选，不再盲猜第一个。
+- **watch 模式**（`Cmd+Alt+W`）：保存文件后自动重新编译并运行；重跑前会先 Ctrl+C 停掉上一轮程序。
+- 新增 `src/compileDb.ts`（编译数据库解析）与 `src/cmake.ts`（CMake 目标解析、产物定位）两个模块。
+
+### 新增配置项
+
+`polyRunner.useCompileDatabase`、`polyRunner.compileDatabaseMode`、`polyRunner.cmakeBuildDir`、`polyRunner.cmakeBuildType`、`polyRunner.cmakeParallelJobs`、`polyRunner.buildBeforeRun`、`polyRunner.watchMode`、`polyRunner.watchDebounceMs`、`polyRunner.projectOutputDir`
+
+### 修复
+
+- 解析编译数据库时正确处理 `-arch arm64` 这类「选项 + 独立参数」的写法（之前会把架构名当成待链接的文件）。
+- 解析编译数据库时剔除编译器自身路径，避免被当成输入文件传给链接器。
+- 编译数据库模式下补上「运行产物」，此前只链接不出可执行程序。
+
+### 测试
+
+端到端测试 18 → **22 条**，新增用例全部使用**真实 CMake 工程**（两个源文件 + 头文件）真机验证：配置、构建、多源文件链接、编译数据库编译并运行、多目标选择、watch 触发。
+
 ## 1.0.1
 
 **扩面版**：语言覆盖 51 → **117 条**，扩展名 74 → **168 个**，并新增两个能力。

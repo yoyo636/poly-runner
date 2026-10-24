@@ -1,8 +1,8 @@
 {
   "name": "poly-runner",
   "displayName": "Poly Runner (Beta) — 多语言运行器",
-  "description": "在 VS Code 里一键编译并运行任意语言的代码：把一条真实的 shell 命令敲进集成终端，由系统 shell 调用系统编译器 / 解释器完成编译与运行。100+ 种语言内置，支持项目级运行。",
-  "version": "1.0.1",
+  "description": "在 VS Code 里一键编译并运行任意语言的代码：把一条真实的 shell 命令敲进集成终端。117 种语言内置，支持 C++ 大型工程（compile_commands.json、CMake 构建→跑产物）、项目级运行与 watch 自动重编译重跑。",
+  "version": "1.0.2",
   "publisher": "local-dev",
   "license": "MIT",
   "icon": "resources/icon.png",
@@ -79,6 +79,12 @@
         "icon": "$(project)"
       },
       {
+        "command": "polyRunner.toggleWatch",
+        "title": "开启/关闭自动重编译重跑",
+        "category": "Poly Runner",
+        "icon": "$(eye)"
+      },
+      {
         "command": "polyRunner.openTerminal",
         "title": "打开运行终端",
         "category": "Poly Runner",
@@ -142,6 +148,11 @@
           "command": "polyRunner.runProject",
           "when": "editorLangId != markdown-preview",
           "group": "5_run_project@5"
+        },
+        {
+          "command": "polyRunner.toggleWatch",
+          "when": "editorLangId != markdown-preview",
+          "group": "6_toggle_watch@6"
         }
       ],
       "editor/context": [
@@ -187,6 +198,10 @@
         {
           "command": "polyRunner.runProject",
           "when": "editorLangId != markdown-preview"
+        },
+        {
+          "command": "polyRunner.toggleWatch",
+          "when": "editorLangId != markdown-preview"
         }
       ]
     },
@@ -220,6 +235,11 @@
         "command": "polyRunner.runProject",
         "key": "ctrl+alt+p",
         "mac": "cmd+alt+p"
+      },
+      {
+        "command": "polyRunner.toggleWatch",
+        "key": "ctrl+alt+w",
+        "mac": "cmd+alt+w"
       }
     ],
     "configuration": {
@@ -353,6 +373,65 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "把源文件内容通过 stdin 喂给程序：命令会变成 `cat <file> | <原命令>`。配合模板变量 `{{pipeFile}}` 效果相同。"
+        },
+        "polyRunner.useCompileDatabase": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "有 `compile_commands.json` 时优先用它编译（自动带上项目真实的 include 路径、宏定义和标准版本）。"
+        },
+        "polyRunner.compileDatabaseMode": {
+          "type": "string",
+          "default": "link",
+          "enum": [
+            "link",
+            "object"
+          ],
+          "enumDescriptions": [
+            "链接整个 target，生成可执行文件并运行",
+            "只编译当前文件为 .o，做语法检查"
+          ],
+          "description": "编译数据库的使用方式。"
+        },
+        "polyRunner.cmakeBuildDir": {
+          "type": "string",
+          "default": "build",
+          "description": "CMake 构建目录（相对项目根）。"
+        },
+        "polyRunner.cmakeBuildType": {
+          "type": "string",
+          "default": "Debug",
+          "enum": [
+            "Debug",
+            "Release",
+            "RelWithDebInfo",
+            "MinSizeRel"
+          ],
+          "description": "CMake 构建类型。"
+        },
+        "polyRunner.cmakeParallelJobs": {
+          "type": "number",
+          "default": 0,
+          "description": "CMake 构建并行任务数，0 表示不指定。"
+        },
+        "polyRunner.buildBeforeRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "项目级运行时先构建再运行产物。"
+        },
+        "polyRunner.watchMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "保存文件后自动重新编译并运行。"
+        },
+        "polyRunner.watchDebounceMs": {
+          "type": "number",
+          "default": 800,
+          "description": "watch 模式的重跑防抖时间（毫秒）。"
+        },
+        "polyRunner.projectOutputDir": {
+          "type": "string",
+          "default": ".poly-runner",
+          "description": "用编译数据库链接产物时，二进制存放目录（相对项目根）。"
         }
       }
     }

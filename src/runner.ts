@@ -5,7 +5,16 @@ import * as vscode from 'vscode';
 import { RunnerConfig, getConfig, splitArgs } from './config';
 import { CompilerInfo, binaryName, defaultOutputDir, findExecutable, formatCommand, resolveCompiler } from './compiler';
 import { OutputExecutor } from './executor';
-import { detectProject, projectRequires } from './projects';
+import { ProjectKind, detectProject, predictCMakeArtifact } from './projects';
+import {
+    extractCompiler,
+    extractFlags,
+    findCompileDatabase,
+    findEntryForFile,
+    loadCompileDatabase,
+    planTargetCompilation,
+    targetKey
+} from './compileDb';
 import { LanguageDef } from './languages';
 import { ShellTerminalManager } from './terminal';
 import {
@@ -118,6 +127,16 @@ export class RunManager {
             return undefined;
         }
 
+        // 2.5) C/C++ 且用户没自定义命令时，优先用项目的编译数据库
+        const isBuiltinTemplate =
+            !config.customCommands[match.id] && !config.customCommandsByExtension[ext];
+        if (isBuiltinTemplate && template.includes('{{compiler}}')) {
+            const dbPlan = await this.tryCompileDatabasePlan(originalPath, scope);
+            if (dbPlan) {
+                return dbPlan;
+            }
+        }
+
         // 3) 准备模板变量
         const compiler = template.includes('{{compiler}}') ? await this.pickCompiler(config) : undefined;
         const outDir = this.resolveOutputDir(config, compilePath);
@@ -218,19 +237,43 @@ export class RunManager {
      * 识别当前文件所属的项目（package.json / Cargo.toml / go.mod …），
      * 生成项目级运行命令。
      */
-    public async prepareProject(startDir: string): Promise<RunPlan | undefined> {
-        const project = detectProject(startDir);
+    public async prepareProject(startDir: string, target?: string, scope?: vscode.Uri): Promise<RunPlan | undefined> {
+        const config = getConfig(scope);
+        const project = detectProject(startDir, {
+            cmakeBuildDir: config.cmakeBuildDir,
+            cmakeBuildType: config.cmakeBuildType
+        });
         if (!project) {
-            this.output.appendLine('[Poly Runner] 没找到可识别的项目标志文件（package.json / Cargo.toml / go.mod …）。');
+            this.output.appendLine('[Poly Runner] 没找到可识别的项目标志文件（package.json / Cargo.toml / go.mod / CMakeLists.txt …）。');
             return undefined;
         }
 
-        const missing = projectRequires(project).filter((bin) => !this.binaryExists(bin));
+        const chosen = target ?? project.targets?.[0];
+        let command = '';
+
+        if (project.build && project.run) {
+            const build = this.fillTemplate(project.build, project.root, chosen);
+            const artifact = this.resolveArtifact(project, chosen);
+            const run = this.fillTemplate(project.run, project.root, chosen, artifact);
+            command = artifact ? `${build} && ${run}` : build;
+        } else if (project.build) {
+            command = this.fillTemplate(project.build, project.root, chosen);
+        }
+
+        if (!command.trim()) {
+            this.output.appendLine(`[Poly Runner] 项目 ${project.label} 没有可用的运行命令。`);
+            return undefined;
+        }
+
+        const missing = (project.requires ?? []).filter((bin) => !this.binaryExists(bin));
 
         this.output.appendLine('');
         this.output.appendLine(`[Poly Runner] 项目: ${project.label}（标志文件 ${project.marker}）`);
         this.output.appendLine(`[Poly Runner] 项目根目录: ${project.root}`);
-        this.output.appendLine(`[Poly Runner] 命令: ${project.command}`);
+        if (project.targets && project.targets.length > 0) {
+            this.output.appendLine(`[Poly Runner] 可选目标: ${project.targets.join(', ')}（当前：${chosen ?? '无'}）`);
+        }
+        this.output.appendLine(`[Poly Runner] 命令: ${command}`);
         if (missing.length > 0) {
             this.output.appendLine(`[Poly Runner] ⚠ 缺少依赖: ${missing.join(', ')}`);
         }
@@ -239,14 +282,110 @@ export class RunManager {
             kind: 'project',
             languageId: project.id,
             languageLabel: project.label,
-            command: project.command,
-            template: project.command,
+            command,
+            template: command,
             cwd: project.root,
             sourcePath: path.join(project.root, project.marker),
             binaryPath: '',
             reason: project.note,
             def: undefined,
             missing
+        };
+    }
+
+    /** 填充命令模板里的 {target} / {root} / {artifact}。 */
+    private fillTemplate(template: string, root: string, target?: string, artifact?: string): string {
+        return template
+            .replace(/\{target\}/g, target ?? '')
+            .replace(/\{root\}/g, root)
+            .replace(/\{artifact\}/g, artifact ?? '');
+    }
+
+    /** 推测构建产物路径。 */
+    private resolveArtifact(project: ProjectKind, target?: string): string | undefined {
+        if (!target) {
+            return undefined;
+        }
+        const config = getConfig();
+        if (project.id === 'cmake') {
+            return predictCMakeArtifact(project.root, config.cmakeBuildDir, target, config.cmakeBuildType);
+        }
+        if (project.id === 'cargo') {
+            const name = process.platform === 'win32' ? `${target}.exe` : target;
+            return path.join(project.root, 'target', 'debug', name);
+        }
+        if (project.id === 'make') {
+            const name = process.platform === 'win32' ? `${target}.exe` : target;
+            return path.join(project.root, name);
+        }
+        return undefined;
+    }
+
+    /** 有 compile_commands.json 时，用它编译单个文件（带齐项目真实的 include/宏定义）。 */
+    private tryCompileDatabasePlan(sourcePath: string, scope?: vscode.Uri): RunPlan | undefined {
+        const config = getConfig(scope);
+        if (!config.useCompileDatabase) {
+            return undefined;
+        }
+        const dbPath = findCompileDatabase(path.dirname(sourcePath));
+        if (!dbPath) {
+            return undefined;
+        }
+        const entries = loadCompileDatabase(dbPath);
+        if (entries.length === 0) {
+            return undefined;
+        }
+        const entry = findEntryForFile(entries, sourcePath);
+        if (!entry) {
+            return undefined;
+        }
+
+        const root = projectRootFromDb(dbPath);
+        const target = targetKey(entry);
+        const outDir = path.join(root, config.projectOutputDir, 'bin');
+        try {
+            fs.mkdirSync(outDir, { recursive: true });
+        } catch {
+            /* 忽略 */
+        }
+
+        const compilerOverride = config.compilerSetting.trim() ? config.compilerSetting.trim() : undefined;
+        let command: string;
+        let used: string;
+
+        if (config.compileDatabaseMode === 'object') {
+            const compiler = compilerOverride ?? extractCompiler(entry) ?? '';
+            const flags = extractFlags(entry);
+            const objPath = path.join(outDir, `${target}.o`);
+            command = `${compiler} ${flags.join(' ')} -c ${shellQuote(sourcePath)} -o ${shellQuote(objPath)}`;
+            used = 'object';
+        } else {
+            const plan = planTargetCompilation(entries, entry, path.join(outDir, target), compilerOverride);
+            if (!plan) {
+                return undefined;
+            }
+            // 链接出可执行文件后直接运行它
+            command = `${plan.command} && ${shellQuote(path.join(outDir, target))}`;
+            used = `${plan.sources.length} 个源文件`;
+        }
+
+        this.output.appendLine('');
+        this.output.appendLine(`[Poly Runner] 使用编译数据库: ${dbPath}`);
+        this.output.appendLine(`[Poly Runner] target: ${target}（${used}）`);
+        this.output.appendLine(`[Poly Runner] 命令: ${command}`);
+
+        return {
+            kind: 'file',
+            languageId: 'compile-db',
+            languageLabel: 'C++（编译数据库）',
+            command,
+            template: command,
+            cwd: root,
+            sourcePath,
+            binaryPath: path.join(outDir, target),
+            reason: `编译数据库 ${path.basename(dbPath)}`,
+            def: undefined,
+            missing: []
         };
     }
 
@@ -285,6 +424,16 @@ export class RunManager {
             : `退出码 ${result.code}`;
         this.output.appendLine(`[Poly Runner] ── ${summary}，耗时 ${result.durationMs} ms ──`);
         this.output.show(true);
+    }
+
+    /** 只停掉正在运行的程序（watch 重跑前用），不打印日志。 */
+    public stopProgram(): void {
+        if (this.executor.isRunning) {
+            this.executor.stop();
+        }
+        if (this.terminals.activeTerminal) {
+            this.terminals.interrupt();
+        }
     }
 
     /** 停止：终端发 Ctrl+C，输出面板模式则杀进程。 */
@@ -366,3 +515,15 @@ export class RunManager {
 }
 
 export { formatCommand };
+
+
+/** 从 compile_commands.json 的位置反推项目根目录。 */
+function projectRootFromDb(dbPath: string): string {
+    const dir = path.dirname(dbPath);
+    const base = path.basename(dir).toLowerCase();
+    const buildDirs = ['build', 'out', 'build-debug', 'cmake-build-debug', 'cmake-build-release'];
+    if (buildDirs.includes(base)) {
+        return path.dirname(dir);
+    }
+    return dir;
+}

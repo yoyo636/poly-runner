@@ -32,7 +32,11 @@ javac /path/to/Main.java && java -cp /path/to Main
 - **两种执行通道**：集成终端（可交互）/ 输出面板（捕获输出 + 超时保护）。
 - **三层识别**：用户绑定 → VS Code 文件类型 → 扩展名 → 脚本 shebang，认不出来时现场问你。
 - **命令模板机制**：`{{file}}` `{{out}}` `{{compiler}}` `{{args}}` 等 14 个变量，任何语言都能自定义命令。
-- **项目级运行**：识别 package.json / Cargo.toml / go.mod / pom.xml / CMakeLists.txt 等，一键跑整个项目（`Cmd+Alt+P`）。
+- **项目级运行**：识别 CMake / package.json / Cargo.toml / go.mod / pom.xml 等，一键跑整个项目（`Cmd+Alt+P`）。
+- **大型 C++ 工程**：自动用 `compile_commands.json` 里的真实参数编译（include 路径、宏定义、标准版本全带上），并自动链接同 target 的所有源文件。
+- **CMake 构建 → 跑产物**：自动「配置 → 构建 → 运行」，多配置生成器也能定位到产物。
+- **多目标选择**：项目有多个 target / script 时弹窗让你选。
+- **watch 模式**：保存后自动重编译重跑（`Cmd+Alt+W`）。
 - **运行前依赖检测**：编译器 / 解释器没装会提前提示，而不是让终端里飘一句 `command not found`。
 - **运行选中的代码**：片段写成临时文件，编译型语言自动带上原目录的 `-I`。
 - **一键停止**：终端发 Ctrl+C，输出面板模式杀整个进程组。
@@ -62,7 +66,8 @@ javac /path/to/Main.java && java -cp /path/to Main
 | `Poly Runner: 在集成终端运行当前文件` | 强制终端模式 | — |
 | `Poly Runner: 在输出面板运行当前文件` | 强制输出面板模式 | `Cmd+Alt+B` / `Ctrl+Alt+B` |
 | `Poly Runner: 停止正在运行的程序` | Ctrl+C / 杀进程 | `Cmd+Alt+.` / `Ctrl+Alt+.` |
-| `Poly Runner: 运行当前项目` | 识别 package.json / Cargo.toml / go.mod 等并运行项目 | `Cmd+Alt+P` / `Ctrl+Alt+P` |
+| `Poly Runner: 运行当前项目` | 识别 CMake / package.json / Cargo.toml 等并运行项目 | `Cmd+Alt+P` / `Ctrl+Alt+P` |
+| `Poly Runner: 开启/关闭自动重编译重跑` | 保存文件后自动重编译重跑 | `Cmd+Alt+W` / `Ctrl+Alt+W` |
 | `Poly Runner: 打开运行终端` | 只开终端 | `Cmd+Alt+O` / `Ctrl+Alt+O` |
 | `Poly Runner: 选择该文件的运行方式` | 换一种运行方式并记住 | — |
 | `Poly Runner: 编辑当前语言的运行命令` | 打开设置改命令 | — |
@@ -94,6 +99,15 @@ javac /path/to/Main.java && java -cp /path/to Main
 | `polyRunner.runOnSave` | boolean | `false` | 保存即运行 |
 | `polyRunner.showWarnings` | boolean | `true` | 开启 `-Wall` / `/W3` |
 | `polyRunner.pipeFileToStdin` | boolean | `false` | 把源文件内容通过 stdin 喂给程序 |
+| `polyRunner.useCompileDatabase` | boolean | `true` | 优先用 `compile_commands.json` 编译 |
+| `polyRunner.compileDatabaseMode` | enum | `link` | `link`=链接整个 target；`object`=只做单文件语法检查 |
+| `polyRunner.cmakeBuildDir` | string | `build` | CMake 构建目录 |
+| `polyRunner.cmakeBuildType` | enum | `Debug` | CMake 构建类型 |
+| `polyRunner.cmakeParallelJobs` | number | `0` | CMake 并行任务数，0 表示不指定 |
+| `polyRunner.buildBeforeRun` | boolean | `true` | 项目级运行时先构建再运行产物 |
+| `polyRunner.watchMode` | boolean | `false` | 保存后自动重编译重跑 |
+| `polyRunner.watchDebounceMs` | number | `800` | watch 重跑的防抖时间 |
+| `polyRunner.projectOutputDir` | string | `.poly-runner` | 编译数据库产物的存放目录 |
 
 ### 命令模板变量
 
@@ -134,6 +148,50 @@ javac /path/to/Main.java && java -cp /path/to Main
   }
 }
 ```
+
+## 大型 C++ / CMake 工程
+
+单文件编译在大型工程里基本没用 —— 头文件路径、宏定义、其它源文件都在构建系统里。这个版本把这块补齐了。
+
+### 编译数据库：按项目真实的参数编译
+
+插件会自动找 `compile_commands.json`（`build/`、`out/`、`cmake-build-debug/` 等常见位置都会找），拿到**这个文件在项目里的真实编译命令**，因此：
+
+- 项目里所有 `-I` include 路径都在
+- `-D` 宏定义都在
+- `-std=c++20` 这类标准版本是项目说了算，不是插件猜的
+- 同 target 的**其它源文件会自动一起编译链接**，不会出现「链接时缺符号」
+
+产物放在项目内 `.poly-runner/bin/`，不会污染源码目录（也可以用 `polyRunner.projectOutputDir` 改）。
+
+命令长这样：
+
+```bash
+/usr/bin/c++ -I/your/project/include -DFOO=1 -std=c++17 src/main.cpp src/util.cpp -o .poly-runner/bin/demo && .poly-runner/bin/demo
+```
+
+想只做语法检查不链接，把 `polyRunner.compileDatabaseMode` 设成 `object`。
+
+### CMake：配置 → 构建 → 运行产物
+
+项目里有 `CMakeLists.txt` 时，`运行当前项目` 会自动串成一条命令：
+
+```bash
+( [ -f build/CMakeCache.txt ] && [ -f build/compile_commands.json ] || cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ) && cmake --build build --target demo && ./build/demo
+```
+
+- 已经配置过就跳过重复 configure
+- `cmake --build` 走的是 CMake 自己的增量逻辑，只重编改过的文件
+- 产物位置按生成器推断：单配置生成器在 `build/<target>`，多配置（Visual Studio / Xcode / Ninja Multi-Config）在 `build/<BuildType>/<target>`
+- 构建失败时 `&&` 会短路，程序不会跑 —— 报错就在终端上
+
+### 多个目标时让你选
+
+CMake 里有多个 `add_executable`、或 `package.json` 里有多个 script 时，运行项目会弹窗让你选，而不是闷头跑第一个。
+
+### watch：保存就重编译重跑
+
+`Cmd+Alt+W` 开启后，保存文件会自动重新编译并运行；重跑前会先 Ctrl+C 停掉上一轮还在跑的程序。状态栏会显示 `watch`。
 
 ## 运行整个项目
 
@@ -223,7 +281,9 @@ src/
   runner.ts      语言识别 → 模板渲染 → 调度执行
   template.ts    占位符渲染、shell 转义、shebang/类名识别
   languages.ts   117 种语言的默认命令表
-  projects.ts    项目级运行识别（package.json / Cargo.toml / go.mod …）
+  projects.ts    项目级运行识别（CMake / package.json / Cargo.toml / go.mod …）
+  compileDb.ts   compile_commands.json 解析、真实编译参数提取
+  cmake.ts       CMake 目标解析、构建与产物定位
   compiler.ts    C/C++ 编译器探测与版本读取
   executor.ts    输出面板模式：捕获输出、超时、进程组终止
   terminal.ts    集成终端管理（sendText、cd、Ctrl+C）

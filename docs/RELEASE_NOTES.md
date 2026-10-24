@@ -1,4 +1,4 @@
-# Poly Runner v1.0.1 (Beta)
+# Poly Runner v1.0.2 (Beta)
 
 > 面向所有语言的 VS Code 运行器 —— 把一条真实的 shell 命令敲进集成终端，由系统编译器 / 解释器完成编译与运行。
 

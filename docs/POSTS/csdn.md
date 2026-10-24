@@ -7,13 +7,13 @@
 
   A. 我给 VS Code 写了个跑代码的插件：它不偷偷 spawn 进程，而是把命令敲进你的终端
   B. Poly Runner：把「运行代码」这件事，还给终端和系统编译器
-  C. VS Code 跑 C++ / Python 时，编译报错去哪了？聊聊「透明执行」这个设计
+  C. VS Code 跑 C++ / Python 时，编译报错去哪了？聊聊「透明执行」与大型工程支持
 
 【摘要（80 字内，填 CSDN 摘要栏）】
 
   写了个 VS Code 插件 Poly Runner：点一下运行，插件把一条真实的 shell 命令敲进集成终端，
   由系统编译器/解释器完成编译与运行。命令可见、可改，报错直达，stdin 天然通。
-  内置 117 种语言，还能一键跑整个项目。欢迎提需求。
+  内置 117 种语言，支持 CMake 大型工程（编译数据库 / 构建→跑产物 / watch 重跑）。欢迎提需求。
 
 【标签】
 
@@ -267,14 +267,58 @@ cat /path/to/data.json | jq .
 
 ---
 
-## 九、实现上的一些取舍
+## 九、大型 C++ 工程：单文件编译在项目里是没用的
+
+如果你写的是正经的 C++ 项目，单文件 `g++ main.cpp -o main` 基本没用 —— 头文件路径、宏定义、其它源文件全在构建系统里。
+
+所以这个版本把大型工程补齐了。
+
+### 用编译数据库编译：参数是项目说了算
+
+插件会自动找 `compile_commands.json`（`build/`、`out/`、`cmake-build-debug/` 这些位置都会找），拿到**这个文件在项目里的真实编译命令**。于是：
+
+- 项目里所有 `-I` include 路径都在
+- `-D` 宏定义都在
+- `-std=c++20` 是项目定的，不是插件猜的
+- 同 target 的**其它源文件会自动一起链接**，不会「链接时缺符号」
+
+命令长这样：
+
+```bash
+/usr/bin/c++ -I/your/project/include -DFOO=1 -std=c++17 src/main.cpp src/util.cpp -o .poly-runner/bin/demo && .poly-runner/bin/demo
+```
+
+产物放在项目内 `.poly-runner/bin/`，不污染源码目录。
+
+### CMake：配置 → 构建 → 运行产物
+
+项目里有 `CMakeLists.txt` 时，运行项目会串成一条命令：
+
+```bash
+( [ -f build/CMakeCache.txt ] && [ -f build/compile_commands.json ] || cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ) && cmake --build build --target demo && ./build/demo
+```
+
+- 已经配置过就跳过重复 configure
+- `cmake --build` 走 CMake 自己的增量逻辑，只重编改过的文件
+- 产物位置按生成器推断：单配置在 `build/<target>`，多配置在 `build/<BuildType>/<target>`
+- 构建失败时 `&&` 短路，程序不会跑 —— 报错就在终端上
+
+### 多个目标时让你选 + watch 模式
+
+CMake 有多个 `add_executable`、npm 有多个 script 时，运行项目会弹窗让你选。
+
+`Cmd+Alt+W` 开启 watch：保存文件自动重编译重跑，重跑前会先 Ctrl+C 停掉上一轮程序。状态栏会显示 `watch`。
+
+## 十、实现上的一些取舍
 
 拆开看是这么几个文件，加起来 2100 行：
 
 | 文件 | 行数 | 职责 |
 | --- | --- | --- |
 | `src/languages.ts` | 1000+ | 117 种语言的命令表（纯数据，不依赖任何模块） |
-| `src/projects.ts` | 200 | 项目识别：package.json / Cargo.toml / go.mod … |
+| `src/projects.ts` | 350 | 项目识别与构建产物定位：CMake / package.json / Cargo.toml / go.mod … |
+| `src/compileDb.ts` | 220 | compile_commands.json 解析、真实编译参数提取 |
+| `src/cmake.ts` | 180 | CMake 目标解析、构建命令与产物定位 |
 | `src/extension.ts` | 360 | 命令注册、状态栏、依赖缺失提示、保存即运行 |
 | `src/runner.ts` | 327 | 语言识别 → 模板渲染 → 调度执行 |
 | `src/template.ts` | 274 | 占位符渲染、shell 转义、shebang/类名识别 |
@@ -312,7 +356,7 @@ this.terminals.send(terminal, plan.command);   // 真正的运行命令
 
 ---
 
-## 十、它怎么保证自己没写错
+## 十一、它怎么保证自己没写错
 
 这个项目的测试不是 mock 出来的假通过，而是**把插件生成的命令原样丢给系统 shell 真跑一遍**：
 
@@ -320,7 +364,9 @@ this.terminals.send(terminal, plan.command);   // 真正的运行命令
 npm test
 ```
 
-覆盖 C++、Python、Java、Ruby、Bash、Rust 六种语言，验证命令生成正确、程序真的跑起来、stdin 真的能读进去、Ctrl+C 真的能停。
+覆盖 C++、Python、Java、Ruby、Bash、Rust、AppleScript、ERB、ksh 等语言，验证命令生成正确、程序真的跑起来、stdin 真的能读进去、Ctrl+C 真的能停。
+
+大型工程部分是**真实 CMake 工程**（两个源文件 + 头文件）真机跑的：配置、构建、多源文件链接、编译数据库编译并运行、多目标选择、watch 触发，一共 22 条测试。
 
 ```ts
 const result = runInShell(command, path.dirname(SAMPLE), '42\n');
@@ -332,7 +378,7 @@ assert.ok(result.stdout.includes('1764'));   // 42²，程序确实读到了 std
 
 ---
 
-## 十一、已知限制
+## 十二、已知限制
 
 说在前面，免得你踩坑：
 
@@ -344,7 +390,7 @@ assert.ok(result.stdout.includes('1764'));   // 42²，程序确实读到了 std
 
 ---
 
-## 十二、一起参与
+## 十三、一起参与
 
 项目是 MIT 协议，核心代码约 2100 行，很好上手：
 

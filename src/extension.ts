@@ -5,11 +5,25 @@ import * as vscode from 'vscode';
 import { getConfig, updateGlobalSetting, updateWorkspaceSetting } from './config';
 import { detectKind } from './compiler';
 import { LANGUAGES } from './languages';
-import { RunManager } from './runner';
+import { RunPlan, RunManager } from './runner';
+import { detectProject } from './projects';
 import { detectLanguage } from './template';
 
 let manager: RunManager | undefined;
 let statusBar: vscode.StatusBarItem | undefined;
+
+/** watch 模式的状态：监视哪个文件、以什么方式重跑。 */
+interface WatchState {
+    file: string;
+    languageId?: string;
+    /** true=项目级运行，false=单文件运行。 */
+    project: boolean;
+    /** 项目模式下的目标名。 */
+    target?: string;
+}
+
+let watchState: WatchState | undefined;
+let watchTimer: NodeJS.Timeout | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     manager = new RunManager(context);
@@ -32,6 +46,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     register('polyRunner.stop', () => manager?.stop());
     register('polyRunner.openTerminal', () => openTerminal());
     register('polyRunner.runProject', () => runProject());
+    register('polyRunner.toggleWatch', () => toggleWatch());
     register('polyRunner.selectLanguage', () => selectLanguage());
     register('polyRunner.editCommand', () => editCommand());
     register('polyRunner.copyCommand', () => copyCommand());
@@ -46,6 +61,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
         vscode.workspace.onDidSaveTextDocument(async (document) => {
             if (!manager || document.uri.scheme !== 'file') {
+                return;
+            }
+            // watch 模式优先
+            if (watchState && path.resolve(document.uri.fsPath) === path.resolve(watchState.file)) {
+                scheduleWatchRun();
                 return;
             }
             if (!getConfig(document.uri).runOnSave) {
@@ -143,7 +163,26 @@ async function runProject(): Promise<void> {
         ? path.dirname(editor.document.uri.fsPath)
         : folder?.uri.fsPath ?? process.cwd();
 
-    const plan = await manager.prepareProject(startDir);
+    const config0 = getConfig(editor?.document.uri);
+    const project = detectProject(startDir, {
+        cmakeBuildDir: config0.cmakeBuildDir,
+        cmakeBuildType: config0.cmakeBuildType
+    });
+
+    // 多个 target / 脚本时，让用户选
+    let target: string | undefined;
+    if (project && project.targets && project.targets.length > 1) {
+        const picked = await vscode.window.showQuickPick(
+            project.targets.map((t) => ({ label: t, description: project.label })),
+            { placeHolder: `选择要运行的目标（${project.label}）` }
+        );
+        if (!picked) {
+            return;
+        }
+        target = picked.label;
+    }
+
+    const plan = await manager.prepareProject(startDir, target, editor?.document.uri);
     if (!plan) {
         vscode.window.showWarningMessage(
             'Poly Runner: 没找到可识别的项目标志文件（package.json / Cargo.toml / go.mod / pom.xml / Makefile …）。'
@@ -168,6 +207,79 @@ async function runProject(): Promise<void> {
     } else {
         await manager.runInOutput(plan, editor?.document.uri);
     }
+}
+
+/** 开启 / 关闭 watch 模式。 */
+async function toggleWatch(): Promise<void> {
+    if (!manager) {
+        return;
+    }
+    if (watchState) {
+        stopWatch();
+        vscode.window.showInformationMessage('Poly Runner: 已关闭自动重编译重跑。');
+        return;
+    }
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('Poly Runner: 请先打开要监视的文件。');
+        return;
+    }
+    const file = editor.document.uri.fsPath;
+    watchState = {
+        file,
+        languageId: editor.document.languageId,
+        project: false
+    };
+    vscode.window.showInformationMessage(
+        `Poly Runner: 已开启自动重编译重跑（保存 ${path.basename(file)} 即触发）。`
+    );
+    updateStatusBar();
+}
+
+/** 关闭 watch，并停掉正在运行的程序。 */
+function stopWatch(): void {
+    watchState = undefined;
+    if (watchTimer) {
+        clearTimeout(watchTimer);
+        watchTimer = undefined;
+    }
+    manager?.stopProgram();
+    updateStatusBar();
+}
+
+/** 保存后延迟触发重跑（防抖，避免连续保存时反复编译）。 */
+function scheduleWatchRun(): void {
+    if (watchTimer) {
+        clearTimeout(watchTimer);
+    }
+    const delay = getConfig().watchDebounceMs;
+    watchTimer = setTimeout(() => {
+        watchTimer = undefined;
+        void triggerWatchRun();
+    }, delay);
+}
+
+/** 重新解析计划并重跑。 */
+async function triggerWatchRun(): Promise<void> {
+    if (!watchState || !manager) {
+        return;
+    }
+    const state = watchState;
+    const uri = vscode.Uri.file(state.file);
+
+    // 先把上一次还在跑的停掉
+    manager.stopProgram();
+
+    let plan: RunPlan | undefined;
+    if (state.project) {
+        plan = await manager.prepareProject(path.dirname(state.file), state.target, uri);
+    } else {
+        plan = await manager.resolvePlan(state.languageId, { originalPath: state.file }, uri);
+    }
+    if (!plan) {
+        return;
+    }
+    await manager.runInTerminal(plan, uri);
 }
 
 async function selectLanguage(): Promise<void> {

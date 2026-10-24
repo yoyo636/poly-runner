@@ -41,6 +41,24 @@ export interface RunnerConfig {
     focusTerminalAfterRun: boolean;
     /** 是否把源文件内容通过 stdin 喂给程序（命令前置 cat <file> |）。 */
     pipeFileToStdin: boolean;
+    /** 有 compile_commands.json 时是否优先使用它。 */
+    useCompileDatabase: boolean;
+    /** 编译数据库模式：link=链接整个 target 生成可执行文件；object=只做单文件语法检查。 */
+    compileDatabaseMode: 'link' | 'object';
+    /** CMake 构建目录（相对项目根）。 */
+    cmakeBuildDir: string;
+    /** CMake 构建类型。 */
+    cmakeBuildType: string;
+    /** CMake 并行任务数，0 表示不指定。 */
+    cmakeParallelJobs: number;
+    /** 项目级运行时是否先构建再运行产物。 */
+    buildBeforeRun: boolean;
+    /** 保存后自动重编译重跑。 */
+    watchMode: boolean;
+    /** watch 模式的重跑防抖时间（毫秒）。 */
+    watchDebounceMs: number;
+    /** 用编译数据库链接产物时存放二进制的目录（相对项目根）。 */
+    projectOutputDir: string;
 }
 
 const SECTION = 'polyRunner';
@@ -68,7 +86,16 @@ export function getConfig(scope?: vscode.Uri): RunnerConfig {
         runOnSave: cfg.get<boolean>('runOnSave', false) ?? false,
         showWarnings: cfg.get<boolean>('showWarnings', true) ?? true,
         focusTerminalAfterRun: cfg.get<boolean>('focusTerminalAfterRun', true) ?? true,
-        pipeFileToStdin: cfg.get<boolean>('pipeFileToStdin', false) ?? false
+        pipeFileToStdin: cfg.get<boolean>('pipeFileToStdin', false) ?? false,
+        useCompileDatabase: cfg.get<boolean>('useCompileDatabase', true) ?? true,
+        compileDatabaseMode: cfg.get<string>('compileDatabaseMode', 'link') === 'object' ? 'object' : 'link',
+        cmakeBuildDir: cfg.get<string>('cmakeBuildDir', 'build') ?? 'build',
+        cmakeBuildType: cfg.get<string>('cmakeBuildType', 'Debug') ?? 'Debug',
+        cmakeParallelJobs: cfg.get<number>('cmakeParallelJobs', 0) ?? 0,
+        buildBeforeRun: cfg.get<boolean>('buildBeforeRun', true) ?? true,
+        watchMode: cfg.get<boolean>('watchMode', false) ?? false,
+        watchDebounceMs: cfg.get<number>('watchDebounceMs', 800) ?? 800,
+        projectOutputDir: cfg.get<string>('projectOutputDir', '.poly-runner') ?? '.poly-runner'
     };
 }
 

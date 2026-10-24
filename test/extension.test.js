@@ -66,6 +66,18 @@ function lastCommand() {
     return terminal.commands[terminal.commands.length - 1].trim();
 }
 
+/** 轮询等待条件成立，超时返回 false。 */
+async function waitFor(predicate, timeoutMs = 30000, intervalMs = 50) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (predicate()) {
+            return true;
+        }
+        await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    return false;
+}
+
 /** 把命令丢给真正的 shell 执行，验证它确实能跑起来。 */
 function runInShell(command, cwd, input = '') {
     const result = spawnSync('/bin/bash', ['-c', `cd ${JSON.stringify(cwd)} && ${command}`], {
@@ -522,6 +534,171 @@ test('ksh：ksh 执行脚本', async () => {
     console.error('[ksh 输出]', result.stdout.trim());
     assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
     assert.ok(result.stdout.includes('ksh ok'), 'ksh 脚本没有跑起来');
+
+    await extension.deactivate();
+});
+
+// ----------------------------------------------------------------------
+// v1.0.2 新增：大型 C++/CMake 工程能力
+// ----------------------------------------------------------------------
+
+const { spawnSync: spawnSyncDirect } = require('node:child_process');
+
+/** 造一个真实的 CMake 多文件工程。 */
+function makeCMakeProject(dir, { extraTarget = false } = {}) {
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.writeFileSync(
+        path.join(dir, 'CMakeLists.txt'),
+        [
+            'cmake_minimum_required(VERSION 3.16)',
+            'project(poly_demo CXX)',
+            'set(CMAKE_CXX_STANDARD 17)',
+            'add_executable(demo src/main.cpp src/util.cpp)',
+            'target_include_directories(demo PRIVATE src)',
+            ...(extraTarget ? ['add_executable(second src/main.cpp)'] : [])
+        ].join('\n')
+    );
+    fs.writeFileSync(
+        path.join(dir, 'src', 'util.h'),
+        '#pragma once\n#include <string>\nstd::string greet(const std::string& who);\n'
+    );
+    fs.writeFileSync(
+        path.join(dir, 'src', 'util.cpp'),
+        '#include "util.h"\nstd::string greet(const std::string& who) { return "hello " + who; }\n'
+    );
+    fs.writeFileSync(
+        path.join(dir, 'src', 'main.cpp'),
+        [
+            '#include <iostream>',
+            '#include "util.h"',
+            'int main() {',
+            '    std::cout << greet("cmake world") << std::endl;',
+            '    std::cout << "cmake project ok" << std::endl;',
+            '    return 0;',
+            '}'
+        ].join('\n')
+    );
+    return path.join(dir, 'src', 'main.cpp');
+}
+
+test('CMake 项目：配置 → 构建 → 运行产物（多源文件真的链接了）', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-cmake-'));
+    const file = makeCMakeProject(dir);
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'cpp' });
+    await state.commands.get('polyRunner.runProject')();
+
+    const command = lastCommand();
+    console.error('[CMake]', command);
+
+    assert.match(command, /cmake -S/, `没有配置步骤: ${command}`);
+    assert.match(command, /cmake --build/, `没有构建步骤: ${command}`);
+    assert.match(command, /--target demo/, `没有指定 target: ${command}`);
+    assert.ok(command.includes('&&'), `构建与运行没有串起来: ${command}`);
+
+    // 真跑：cmake 必须真的能把两个源文件链接成可执行文件
+    const result = runInShell(command, dir);
+    console.error('[CMake 输出]', result.stdout.trim());
+    assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('cmake project ok'), 'CMake 产物没有跑起来');
+    assert.ok(result.stdout.includes('hello cmake world'), '多源文件没有正确链接（util.cpp 的符号缺失）');
+
+    // 构建产物确实落在 build/ 下
+    assert.ok(fs.existsSync(path.join(dir, 'build', 'demo')), '产物没有生成在 build/ 下');
+
+    await extension.deactivate();
+});
+
+test('编译数据库：单文件运行会链接整个 target 的源文件', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-db-'));
+    const file = makeCMakeProject(dir);
+
+    // 先让 CMake 生成 compile_commands.json
+    const configure = runInShell(
+        `cmake -S ${dir} -B ${path.join(dir, 'build')} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`,
+        dir
+    );
+    assert.strictEqual(configure.status, 0, `cmake 配置失败:\n${configure.stderr}`);
+    assert.ok(fs.existsSync(path.join(dir, 'build', 'compile_commands.json')), '没有生成 compile_commands.json');
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'cpp' });
+    await state.commands.get('polyRunner.runFile')();
+
+    const command = lastCommand();
+    console.error('[编译数据库]', command);
+
+    assert.ok(command.includes('util.cpp'), `编译数据库模式没有带上同 target 的其他源文件: ${command}`);
+    assert.ok(command.includes('-I'), `编译数据库模式没有带上 include 路径: ${command}`);
+    assert.ok(!command.includes(' -c '), `编译数据库模式不该只编译单个文件: ${command}`);
+    assert.ok(command.includes('.poly-runner'), `产物没有放到 .poly-runner 目录: ${command}`);
+
+    const result = runInShell(command, dir);
+    console.error('[编译数据库 输出]', result.stdout.trim());
+    assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('cmake project ok'), '编译数据库编译出来的程序没跑起来');
+    assert.ok(result.stdout.includes('hello cmake world'), '多源文件没有正确链接');
+
+    await extension.deactivate();
+});
+
+test('多目标：CMake 有多个可执行目标时让你选', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-multi-'));
+    const file = makeCMakeProject(dir, { extraTarget: true });
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'cpp' });
+    // 模拟用户选了第二个目标
+    state.quickPickResult = { label: 'second' };
+
+    await state.commands.get('polyRunner.runProject')();
+
+    const command = lastCommand();
+    console.error('[多目标]', command);
+    assert.match(command, /--target second/, `没有用选中的目标: ${command}`);
+
+    state.quickPickResult = undefined;
+
+    await extension.deactivate();
+});
+
+test('watch 模式：保存后自动重新编译并运行', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-watch-'));
+    const file = makeCMakeProject(dir);
+
+    state.overrides['polyRunner.watchDebounceMs'] = 30;
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'cpp' });
+    await state.commands.get('polyRunner.toggleWatch')();
+
+    // 清掉上一轮测试留下的终端，只看 watch 自己新建的
+    state.terminals.length = 0;
+    state.lastTerminal = undefined;
+    const before = state.terminals.length;
+
+    // 模拟保存（只调用本次 activate 注册的那个 handler）
+    const handler = state.onDidSaveTextDocumentHandlers[state.onDidSaveTextDocumentHandlers.length - 1];
+    await handler({ uri: Uri.file(file), languageId: 'cpp', isDirty: false, getText: () => '', save: () => Promise.resolve(true) });
+
+    // 轮询等待重跑发生（避免固定 sleep 带来的时序抖动）
+    await waitFor(() => state.terminals.length > before, 10000, 50);
+
+    const after = state.terminals.length;
+    console.error('[watch] 触发前终端数', before, '触发后', after);
+    assert.ok(after > before, '保存后没有自动重跑');
+    assert.ok(state.lastTerminal.commands.length > 0, 'watch 重跑没有发出命令');
+
+    delete state.overrides['polyRunner.watchDebounceMs'];
 
     await extension.deactivate();
 });
