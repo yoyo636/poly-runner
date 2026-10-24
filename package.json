@@ -1,8 +1,8 @@
 {
   "name": "poly-runner",
   "displayName": "Poly Runner (Beta) — 多语言运行器",
-  "description": "在 VS Code 里一键编译并运行任意语言的代码：把一条真实的 shell 命令敲进集成终端，由系统 shell 调用系统编译器 / 解释器完成编译与运行。（Beta 版）",
-  "version": "1.0.0",
+  "description": "在 VS Code 里一键编译并运行任意语言的代码：把一条真实的 shell 命令敲进集成终端，由系统 shell 调用系统编译器 / 解释器完成编译与运行。100+ 种语言内置，支持项目级运行。",
+  "version": "1.0.1",
   "publisher": "local-dev",
   "license": "MIT",
   "icon": "resources/icon.png",
@@ -73,6 +73,12 @@
         "icon": "$(debug-stop)"
       },
       {
+        "command": "polyRunner.runProject",
+        "title": "运行当前项目",
+        "category": "Poly Runner",
+        "icon": "$(project)"
+      },
+      {
         "command": "polyRunner.openTerminal",
         "title": "打开运行终端",
         "category": "Poly Runner",
@@ -131,6 +137,11 @@
           "command": "polyRunner.selectLanguage",
           "when": "editorLangId != markdown-preview",
           "group": "4_select_language@4"
+        },
+        {
+          "command": "polyRunner.runProject",
+          "when": "editorLangId != markdown-preview",
+          "group": "5_run_project@5"
         }
       ],
       "editor/context": [
@@ -143,6 +154,11 @@
           "command": "polyRunner.runSelection",
           "when": "editorLangId != markdown-preview",
           "group": "navigation@101"
+        },
+        {
+          "command": "polyRunner.runProject",
+          "when": "editorLangId != markdown-preview",
+          "group": "navigation@102"
         }
       ],
       "explorer/context": [
@@ -166,6 +182,10 @@
         },
         {
           "command": "polyRunner.runInOutput",
+          "when": "editorLangId != markdown-preview"
+        },
+        {
+          "command": "polyRunner.runProject",
           "when": "editorLangId != markdown-preview"
         }
       ]
@@ -195,6 +215,11 @@
         "command": "polyRunner.openTerminal",
         "key": "ctrl+alt+o",
         "mac": "cmd+alt+o"
+      },
+      {
+        "command": "polyRunner.runProject",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
       }
     ],
     "configuration": {
@@ -203,7 +228,7 @@
         "polyRunner.customCommands": {
           "type": "object",
           "default": {},
-          "markdownDescription": "按语言覆盖运行命令。键是 VS Code language id，值是命令模板。可用变量：`{{file}}` `{{fileNoExt}}` `{{fileName}}` `{{basename}}` `{{dir}}` `{{workspaceFolder}}` `{{relativeFile}}` `{{tmpFile}}` `{{out}}` `{{compiler}}` `{{std}}` `{{warnings}}` `{{args}}` `{{className}}`。路径类变量由插件自动加引号。",
+          "markdownDescription": "按语言覆盖运行命令。键是 VS Code language id，值是命令模板。可用变量：`{{file}}` `{{fileNoExt}}` `{{fileName}}` `{{basename}}` `{{dir}}` `{{workspaceFolder}}` `{{relativeFile}}` `{{tmpFile}}` `{{out}}` `{{compiler}}` `{{std}}` `{{warnings}}` `{{args}}` `{{className}}` `{{pipeFile}}`。路径类变量由插件自动加引号。",
           "additionalProperties": {
             "type": "string"
           },
@@ -323,6 +348,11 @@
           "type": "string",
           "default": "",
           "description": "编译产物输出目录（只对编译型语言生效）。留空则使用扩展的全局存储目录，不会在项目里留下垃圾文件。"
+        },
+        "polyRunner.pipeFileToStdin": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "把源文件内容通过 stdin 喂给程序：命令会变成 `cat <file> | <原命令>`。配合模板变量 `{{pipeFile}}` 效果相同。"
         }
       }
     }

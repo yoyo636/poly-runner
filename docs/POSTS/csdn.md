@@ -13,7 +13,7 @@
 
   写了个 VS Code 插件 Poly Runner：点一下运行，插件把一条真实的 shell 命令敲进集成终端，
   由系统编译器/解释器完成编译与运行。命令可见、可改，报错直达，stdin 天然通。
-  内置 51 种语言，欢迎提需求。
+  内置 117 种语言，还能一键跑整个项目。欢迎提需求。
 
 【标签】
 
@@ -138,17 +138,21 @@ code --install-extension poly-runner-1.0.0.vsix
 
 ---
 
-## 五、内置 51 种语言
+## 五、内置 117 种语言
 
 编译型、脚本型、JVM、标记型都覆盖了：
 
 | 类别 | 语言 |
 | --- | --- |
-| 编译型 | C、C++、C#、F#、Objective-C、Rust、Go、Swift、Kotlin、Scala、Groovy、Dart、Haskell、Julia、Elixir、OCaml、Nim、Zig、Verilog |
-| 脚本型 | Python、JavaScript、TypeScript、Shell、PowerShell、Batch、Ruby、PHP、Perl、Lua、Tcl、Awk、R |
+| 编译型 | C、C++、C#、F#、Objective-C、Objective-C++、Rust、Go、Swift、Kotlin、Scala、Groovy、Dart、Haskell、Julia、Elixir、OCaml、Nim、Zig、Verilog、VHDL、Fortran、Pascal、Ada、Assembly、CUDA、Elm、Vala、Pony、Chapel |
+| 脚本型 | Python、JavaScript、TypeScript、CoffeeScript、Shell、Fish、Nushell、ksh、PowerShell、Batch、Ruby、PHP、Perl、Raku、Lua、Tcl、Awk、R、Crystal |
+| 函数式 | Clojure、Erlang、Racket、Scheme、Common Lisp、Emacs Lisp、Janet、Fennel、Hy、Standard ML、Prolog |
 | JVM | Java、Kotlin、Scala、Groovy |
-| 标记型 | JSON、YAML、XML、HTML、Markdown、LaTeX、SQL、GraphQL |
-| 工程 | Dockerfile、Makefile、CMake、Vue、Svelte、Astro |
+| 模板/样式 | Sass、Less、Stylus、Handlebars、EJS、Pug、Mustache、Liquid、Nunjucks、Twig、Jinja2、Mako、ERB、Haml、Slim |
+| 标记型 | JSON、YAML、XML、HTML、Markdown、LaTeX、SQL、GraphQL、CSV |
+| 工程 | Dockerfile、Makefile、CMake、Justfile、Taskfile、Rakefile、Terraform、Nix、Vue、Svelte、Astro |
+
+一共 **117 条语言条目、168 个文件扩展名**。
 
 C/C++ 会自动探测 `g++`、`clang++`、`c++`、`g++-14` 这类版本化名字，Windows 上还会通过 `vswhere` 找到 MSVC 的 `cl.exe`，并自动切换成 `/EHsc /std:c++17 ... /Fe:...` 这套参数风格。
 
@@ -156,7 +160,39 @@ C/C++ 会自动探测 `g++`、`clang++`、`c++`、`g++-14` 这类版本化名字
 
 ---
 
-## 六、命令模板：任何语言都能加
+## 六、不是只有单文件：项目级运行
+
+很多代码不是单文件能跑通的。插件会从当前文件所在目录**向上查找**项目标志文件，认出项目类型，给出对应命令：
+
+| 标志文件 | 项目 | 执行的命令 |
+| --- | --- | --- |
+| `package.json` | Node.js | `npm run <脚本>`（自动挑 `start`/`dev`/`serve`/`build`/`test`，否则第一个） |
+| `deno.json` | Deno | `deno task <任务>` |
+| `Cargo.toml` | Rust | `cargo run` |
+| `go.mod` | Go | `go run .` |
+| `pom.xml` | Maven | `mvn -q package` |
+| `build.gradle` | Gradle | `./gradlew run`（有 wrapper 时） |
+| `CMakeLists.txt` | CMake | `cmake -S . -B build && cmake --build build` |
+| `Makefile` | Make | `make` |
+| `justfile` / `Taskfile.yml` / `Rakefile` | just / Task / Rake | `just` / `task` / `rake` |
+| `mix.exs` | Elixir Mix | `mix run` |
+| `*.sln` / `*.csproj` | .NET | `dotnet run` |
+
+命令在**项目根目录**执行，相对路径行为跟你手动进项目敲完全一致。
+
+按 `Cmd+Alt+P` 就行。
+
+## 七、把文件内容当 stdin 喂给程序
+
+有些工具是从 stdin 读输入的（`jq`、`sort`、某些校验脚本）。打开 `polyRunner.pipeFileToStdin`，命令就会变成：
+
+```bash
+cat /path/to/data.json | jq .
+```
+
+也可以在自定义命令里用 `{{pipeFile}}` 精确控制要不要带这个前缀。
+
+## 八、命令模板：任何语言都能加
 
 这是我觉得最值得写一段的设计。
 
@@ -190,6 +226,7 @@ C/C++ 会自动探测 `g++`、`clang++`、`c++`、`g++-14` 这类版本化名字
 | `{{warnings}}` | `-Wall` 或空串 |
 | `{{args}}` | 附加运行参数 |
 | `{{className}}` | 从源码里解析出的类名（Java/Kotlin/Scala） |
+| `{{pipeFile}}` | stdin 管道前缀 `cat <file> \| `（需开启 `polyRunner.pipeFileToStdin`） |
 
 **路径类变量由插件自动做 shell 转义**，所以模板里不要自己加引号 —— 否则 Windows 下带空格路径、双引号嵌套都会出问题。
 
@@ -230,13 +267,14 @@ C/C++ 会自动探测 `g++`、`clang++`、`c++`、`g++-14` 这类版本化名字
 
 ---
 
-## 七、实现上的一些取舍
+## 九、实现上的一些取舍
 
 拆开看是这么几个文件，加起来 2100 行：
 
 | 文件 | 行数 | 职责 |
 | --- | --- | --- |
-| `src/languages.ts` | 491 | 51 种语言的命令表（纯数据，不依赖任何模块） |
+| `src/languages.ts` | 1000+ | 117 种语言的命令表（纯数据，不依赖任何模块） |
+| `src/projects.ts` | 200 | 项目识别：package.json / Cargo.toml / go.mod … |
 | `src/extension.ts` | 360 | 命令注册、状态栏、依赖缺失提示、保存即运行 |
 | `src/runner.ts` | 327 | 语言识别 → 模板渲染 → 调度执行 |
 | `src/template.ts` | 274 | 占位符渲染、shell 转义、shebang/类名识别 |
@@ -274,7 +312,7 @@ this.terminals.send(terminal, plan.command);   // 真正的运行命令
 
 ---
 
-## 八、它怎么保证自己没写错
+## 十、它怎么保证自己没写错
 
 这个项目的测试不是 mock 出来的假通过，而是**把插件生成的命令原样丢给系统 shell 真跑一遍**：
 
@@ -294,18 +332,19 @@ assert.ok(result.stdout.includes('1764'));   // 42²，程序确实读到了 std
 
 ---
 
-## 九、已知限制
+## 十一、已知限制
 
 说在前面，免得你踩坑：
 
 - **Windows + MSVC** 需要把默认终端设成「x64 Native Tools Command Prompt」，否则 `cl.exe` 找不到标准库。图省事建议用 MinGW 的 `g++`。
 - **TypeScript** 默认走 `npx tsx`，需要本地有 tsx / ts-node。
 - **输出面板模式没有 TTY**，需要交互式输入或带界面的程序请用终端模式。
+- **V 语言**的 `.v` 扩展名和 Verilog 冲突（Verilog 更常用），V 需要用「选择该文件的运行方式」手动指定。
 - 接口还在 Beta 阶段，配置项和默认行为都可能调整。
 
 ---
 
-## 十、一起参与
+## 十二、一起参与
 
 项目是 MIT 协议，核心代码约 2100 行，很好上手：
 

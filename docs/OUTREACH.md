@@ -18,7 +18,7 @@
 | 编译报错看不到 / 被吞掉 | 报错直接在终端里，跟手敲一样 |
 | 程序要读 stdin 怎么办 | 程序就跑在终端里，直接打字回车 |
 | 跑完想接着敲命令 | 同一个终端，还能继续敲 |
-| 不同语言命令不一样，记不住 | 51 种语言内置，改一行配置就能加新语言 |
+| 不同语言命令不一样，记不住 | 117 种语言内置，改一行配置就能加新语言 |
 
 ## 目标人群
 
@@ -75,7 +75,7 @@ https://github.com/yoyo636/poly-runner
     python hello.py
     javac Main.java && java -cp . Main
 
-内置 51 种语言（C/C++、Python、Java、Go、Rust、JS/TS、Shell、Ruby、PHP…），
+内置 117 种语言（C/C++、Python、Java、Go、Rust、JS/TS、Shell、Ruby、PHP…），
 还能一条配置加新语言。
 
 现在是 Beta，欢迎试用，也欢迎来评论区提意见：
@@ -105,7 +105,7 @@ Why it matters:
 - you can keep using that terminal afterwards
 - you can see (and edit!) the command before it runs
 
-51 languages built in, and adding your own is a 5-line change.
+117 languages built in, and adding your own is a 5-line change.
 
 Beta, so feedback is very welcome — especially "which language should I add next?".
 GitHub: https://github.com/yoyo636/poly-runner
@@ -129,7 +129,7 @@ Try it: https://github.com/yoyo636/poly-runner
 1/ 我给 VS Code 写了个跑代码的插件：不自己偷偷 spawn 进程，而是把一条真实的命令敲进终端。
 2/ 你看到的就是你执行的：g++ -std=c++17 -Wall main.cpp -o out && out
 3/ 好处很直接：编译报错在终端里、程序能读 stdin、跑完还能接着敲命令。
-4/ 内置 51 种语言，加一门新语言只要改 5 行配置。
+4/ 内置 117 种语言，加一门新语言只要改 5 行配置。
 5/ Beta 版，欢迎试用和吐槽：github.com/yoyo636/poly-runner
 ```
 

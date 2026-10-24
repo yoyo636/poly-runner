@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.0.1
+
+**扩面版**：语言覆盖 51 → **117 条**，扩展名 74 → **168 个**，并新增两个能力。
+
+### 新增
+
+- **项目级运行**（`Poly Runner: 运行当前项目`，`Cmd+Alt+P`）：从当前文件所在目录向上查找项目标志文件并运行整个项目。
+  支持 `package.json`（自动挑 `start`/`dev`/`serve`/`build`/`test` 或第一个脚本）、`deno.json`、`Cargo.toml`、`go.mod`、`pom.xml`、`build.gradle`、`CMakeLists.txt`、`Makefile`、`justfile`、`Taskfile.yml`、`Rakefile`、`mix.exs`、`*.sln` / `*.csproj`。
+- **stdin 管道模式**（`polyRunner.pipeFileToStdin`）：命令变成 `cat <文件> | <原命令>`；也可在自定义命令里用 `{{pipeFile}}` 精确控制。
+- 新增 `src/projects.ts` 模块负责项目识别。
+- 新增模板变量 `{{pipeFile}}`（共 15 个变量）。
+
+### 语言扩充
+
+新增 66 种语言，典型包括：
+
+- 函数式：Clojure、Erlang、Racket、Scheme、Common Lisp、Emacs Lisp、Janet、Fennel、Hy、Standard ML、Prolog
+- 脚本/方言：Fish、Nushell、ksh、csh、CoffeeScript、Raku、Zig 生态、Applescript、AutoHotkey、AutoIt、Vim script
+- 编译型：Crystal、D、Odin、V、Fortran、Pascal、Ada、VHDL、Assembly、CUDA、Elm、Vala、Pony、Chapel、Ballerina、Idris、Agda、Nix、GLSL、WAT
+- 模板/样式：Sass、Less、Stylus、Handlebars、EJS、Pug、Mustache、Liquid、Nunjucks、Twig、Jinja2、Mako、ERB、Haml、Slim、AsciiDoc
+- 工程/杂项：Justfile、Taskfile、Rakefile、Terraform、CSV、Objective-C++
+
+### 修复
+
+- `appleScript` 的 language id 改为 VS Code 惯例的 `applescript`。
+- D 语言的命令不再写死产物名（`./file` → `./{{basename}}`）。
+- 解决扩展名冲突：`.mm` 归 Objective-C++、`.m` 归 Objective-C；`.v` 归 Verilog，V 语言保留手动选择入口。
+- 去掉无扩展名可识别的 Mix 条目（mix 项目由项目级运行接管）。
+
 ## 1.0.0 (Beta)
 
 首个 Beta 版本：**面向所有语言**的 VS Code 运行器。
@@ -13,7 +42,7 @@
 
 ### 多语言
 
-- 内置 **51 种语言**的运行命令：C/C++、Python、Java、Kotlin、Scala、Groovy、JavaScript/TypeScript、Go、Rust、Swift、C#、F#、Objective-C、Dart、Haskell、Julia、Elixir、OCaml、Nim、Zig、Ruby、PHP、Perl、Lua、R、Shell、PowerShell、Batch、LaTeX、SQL、JSON、HTML、Vue、Svelte、Astro、Verilog……
+- 内置 **117 种语言**的运行命令：C/C++、Python、Java、Kotlin、Scala、Groovy、JavaScript/TypeScript、Go、Rust、Swift、C#、F#、Objective-C、Dart、Haskell、Julia、Elixir、OCaml、Nim、Zig、Ruby、PHP、Perl、Lua、R、Shell、PowerShell、Batch、LaTeX、SQL、JSON、HTML、Vue、Svelte、Astro、Verilog……
 - 识别顺序：用户绑定 → VS Code 文件类型 → 扩展名 → 脚本首行 shebang。
 - 识别不出来时会弹窗让你现场选一种，并可记住绑定。
 - C/C++ 自动探测 `g++` / `clang++` / `c++` / 版本化名字 / Windows MSVC `cl.exe`。

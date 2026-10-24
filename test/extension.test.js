@@ -396,3 +396,132 @@ test('只打开终端：不执行任何命令', async () => {
 
     await extension.deactivate();
 });
+
+// ----------------------------------------------------------------------
+// v1.0.1 新增：项目级运行 / stdin 管道 / 更多语言
+// ----------------------------------------------------------------------
+
+test('项目级运行：识别 package.json 并跑对应脚本', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-npm-'));
+    fs.writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ name: 'demo', version: '1.0.0', scripts: { hello: 'echo "npm hello ok"' } }, null, 2)
+    );
+    const file = path.join(dir, 'index.js');
+    fs.writeFileSync(file, 'console.log(1);\n');
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'javascript' });
+    await state.commands.get('polyRunner.runProject')();
+
+    const command = lastCommand();
+    console.error('[项目]', command);
+
+    assert.match(command, /^npm run /, `不是 npm 命令: ${command}`);
+
+    const result = runInShell(command, dir);
+    console.error('[项目 输出]', result.stdout.trim());
+    assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('npm hello ok'), '项目脚本没有跑起来');
+
+    await extension.deactivate();
+});
+
+test('stdin 管道模式：命令前置 cat <file> |', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-pipe-'));
+    const file = makeTempFile(dir, 'data.py', 'print("hi")\n');
+    const size = fs.statSync(file).size;
+
+    state.overrides['polyRunner.pipeFileToStdin'] = true;
+    state.overrides['polyRunner.customCommands.python'] = '{{pipeFile}}wc -c';
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'python' });
+    await state.commands.get('polyRunner.runFile')();
+
+    const command = lastCommand();
+    console.error('[管道]', command);
+
+    assert.match(command, /^cat /, `命令没有 cat 前缀: ${command}`);
+    assert.ok(command.includes('| wc -c'), `命令没有管道: ${command}`);
+
+    const result = runInShell(command, dir);
+    console.error('[管道 输出]', result.stdout.trim());
+    assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
+    assert.ok(result.stdout.trim() === String(size), `管道内容不对: ${result.stdout.trim()} != ${size}`);
+
+    delete state.overrides['polyRunner.pipeFileToStdin'];
+    delete state.overrides['polyRunner.customCommands.python'];
+
+    await extension.deactivate();
+});
+
+test('AppleScript：osascript 运行脚本', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-apple-'));
+    const file = makeTempFile(dir, 'hello.applescript', 'return "applescript ok"\n');
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'applescript' });
+    await state.commands.get('polyRunner.runFile')();
+
+    const command = lastCommand();
+    console.error('[AppleScript]', command);
+    assert.match(command, /osascript/, `不是 osascript 命令: ${command}`);
+
+    const result = runInShell(command, dir);
+    console.error('[AppleScript 输出]', result.stdout.trim());
+    assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('applescript ok'), 'AppleScript 没有跑起来');
+
+    await extension.deactivate();
+});
+
+test('ERB：erb 渲染模板', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-erb-'));
+    const file = makeTempFile(dir, 'hello.erb', 'erb ok <%= 1 + 1 %>\n');
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'erb' });
+    await state.commands.get('polyRunner.runFile')();
+
+    const command = lastCommand();
+    console.error('[ERB]', command);
+    assert.match(command, /erb/, `不是 erb 命令: ${command}`);
+
+    const result = runInShell(command, dir);
+    console.error('[ERB 输出]', result.stdout.trim());
+    assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('erb ok 2'), 'ERB 没有渲染出来');
+
+    await extension.deactivate();
+});
+
+test('ksh：ksh 执行脚本', async () => {
+    const context = fakeContext();
+    await extension.activate(context);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poly-ksh-'));
+    const file = makeTempFile(dir, 'hello.ksh', 'echo "ksh ok"\n');
+
+    state.activeTextEditor = fakeEditor(file, { languageId: 'ksh' });
+    await state.commands.get('polyRunner.runFile')();
+
+    const command = lastCommand();
+    console.error('[ksh]', command);
+    assert.match(command, /ksh/, `不是 ksh 命令: ${command}`);
+
+    const result = runInShell(command, dir);
+    console.error('[ksh 输出]', result.stdout.trim());
+    assert.strictEqual(result.status, 0, `命令执行失败:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('ksh ok'), 'ksh 脚本没有跑起来');
+
+    await extension.deactivate();
+});

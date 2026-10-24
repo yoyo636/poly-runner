@@ -31,6 +31,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     register('polyRunner.runInOutput', () => runCurrentFile('output'));
     register('polyRunner.stop', () => manager?.stop());
     register('polyRunner.openTerminal', () => openTerminal());
+    register('polyRunner.runProject', () => runProject());
     register('polyRunner.selectLanguage', () => selectLanguage());
     register('polyRunner.editCommand', () => editCommand());
     register('polyRunner.copyCommand', () => copyCommand());
@@ -127,6 +128,46 @@ async function openTerminal(): Promise<void> {
     const sourcePath = editor?.document.uri.fsPath;
     const cwd = sourcePath ? path.dirname(sourcePath) : process.cwd();
     manager.openTerminal(cwd);
+}
+
+/** 运行当前文件所属的项目（package.json / Cargo.toml / go.mod …）。 */
+async function runProject(): Promise<void> {
+    if (!manager) {
+        return;
+    }
+    const editor = vscode.window.activeTextEditor;
+    const folder = editor
+        ? vscode.workspace.getWorkspaceFolder(editor.document.uri)
+        : vscode.workspace.workspaceFolders?.[0];
+    const startDir = editor
+        ? path.dirname(editor.document.uri.fsPath)
+        : folder?.uri.fsPath ?? process.cwd();
+
+    const plan = await manager.prepareProject(startDir);
+    if (!plan) {
+        vscode.window.showWarningMessage(
+            'Poly Runner: 没找到可识别的项目标志文件（package.json / Cargo.toml / go.mod / pom.xml / Makefile …）。'
+        );
+        return;
+    }
+
+    const config = getConfig(editor?.document.uri);
+    if (plan.missing.length > 0) {
+        const choice = await vscode.window.showWarningMessage(
+            `Poly Runner: 缺少 ${plan.missing.join('、')}，这条命令可能会失败。`,
+            '仍然运行',
+            '取消'
+        );
+        if (choice !== '仍然运行') {
+            return;
+        }
+    }
+
+    if (config.executeInTerminal) {
+        await manager.runInTerminal(plan, editor?.document.uri);
+    } else {
+        await manager.runInOutput(plan, editor?.document.uri);
+    }
 }
 
 async function selectLanguage(): Promise<void> {

@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { RunnerConfig, getConfig, splitArgs } from './config';
 import { CompilerInfo, binaryName, defaultOutputDir, findExecutable, formatCommand, resolveCompiler } from './compiler';
 import { OutputExecutor } from './executor';
+import { detectProject, projectRequires } from './projects';
 import { LanguageDef } from './languages';
 import { ShellTerminalManager } from './terminal';
 import {
@@ -19,6 +20,8 @@ import {
 const OUTPUT_CHANNEL_NAME = 'Poly Runner';
 
 export interface RunPlan {
+    /** 运行类型：单文件 / 项目。 */
+    kind: 'file' | 'project';
     /** 语言 id。 */
     languageId: string;
     /** 语言展示名。 */
@@ -136,7 +139,8 @@ export class RunManager {
             std: config.cppStandard,
             warnings: config.showWarnings ? '-Wall' : '',
             args: joinArgs(splitArgs(config.runArguments)),
-            className: detectClassName(compilePath, base)
+            className: detectClassName(compilePath, base),
+            pipeFile: config.pipeFileToStdin ? `cat ${shellQuote(compilePath)} | ` : ''
         };
 
         let command = renderTemplate(template, ctx);
@@ -184,6 +188,7 @@ export class RunManager {
         }
 
         return {
+            kind: 'file',
             languageId: match.id,
             languageLabel: match.def?.label ?? match.id,
             command,
@@ -208,6 +213,42 @@ export class RunManager {
     // ------------------------------------------------------------------
     // 执行
     // ------------------------------------------------------------------
+
+    /**
+     * 识别当前文件所属的项目（package.json / Cargo.toml / go.mod …），
+     * 生成项目级运行命令。
+     */
+    public async prepareProject(startDir: string): Promise<RunPlan | undefined> {
+        const project = detectProject(startDir);
+        if (!project) {
+            this.output.appendLine('[Poly Runner] 没找到可识别的项目标志文件（package.json / Cargo.toml / go.mod …）。');
+            return undefined;
+        }
+
+        const missing = projectRequires(project).filter((bin) => !this.binaryExists(bin));
+
+        this.output.appendLine('');
+        this.output.appendLine(`[Poly Runner] 项目: ${project.label}（标志文件 ${project.marker}）`);
+        this.output.appendLine(`[Poly Runner] 项目根目录: ${project.root}`);
+        this.output.appendLine(`[Poly Runner] 命令: ${project.command}`);
+        if (missing.length > 0) {
+            this.output.appendLine(`[Poly Runner] ⚠ 缺少依赖: ${missing.join(', ')}`);
+        }
+
+        return {
+            kind: 'project',
+            languageId: project.id,
+            languageLabel: project.label,
+            command: project.command,
+            template: project.command,
+            cwd: project.root,
+            sourcePath: path.join(project.root, project.marker),
+            binaryPath: '',
+            reason: project.note,
+            def: undefined,
+            missing
+        };
+    }
 
     /** 在集成终端里执行命令。 */
     public async runInTerminal(plan: RunPlan, scope?: vscode.Uri): Promise<void> {

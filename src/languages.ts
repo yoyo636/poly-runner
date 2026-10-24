@@ -281,7 +281,7 @@ export const LANGUAGES: LanguageDef[] = [
     {
         id: 'objective-c',
         label: 'Objective-C',
-        extensions: ['.m', '.mm'],
+        extensions: ['.m'],
         command: 'clang -framework Foundation {{file}} -o {{out}} && {{out}}',
         compiled: true,
         requires: ['clang'],
@@ -487,5 +487,559 @@ export const LANGUAGES: LanguageDef[] = [
         command: 'cat {{file}}',
         requires: ['cat'],
         note: '在终端输出文件内容'
+    },
+
+    // ------------------------------------------------------------------
+    // 函数式 / 脚本类
+    // ------------------------------------------------------------------
+    {
+        id: 'clojure',
+        label: 'Clojure',
+        extensions: ['.clj', '.cljs', '.cljc', '.edn'],
+        command: 'clojure -M {{file}} {{args}}',
+        requires: ['clojure'],
+        note: '用 clojure -M 直接运行脚本'
+    },
+    {
+        id: 'erlang',
+        label: 'Erlang',
+        extensions: ['.erl', '.hrl'],
+        command: 'escript {{file}} {{args}}',
+        requires: ['escript'],
+        note: '用 escript 运行 Erlang 脚本'
+    },
+    {
+        id: 'racket',
+        label: 'Racket',
+        extensions: ['.rkt'],
+        command: 'racket {{file}} {{args}}',
+        requires: ['racket'],
+        note: '用 racket 运行脚本'
+    },
+    {
+        id: 'scheme',
+        label: 'Scheme',
+        extensions: ['.scm', '.ss'],
+        command: 'guile {{file}} {{args}}',
+        requires: ['guile'],
+        note: '用 guile 运行 Scheme 脚本'
+    },
+    {
+        id: 'commonlisp',
+        label: 'Common Lisp',
+        extensions: ['.lisp', '.lsp', '.cl'],
+        command: 'sbcl --script {{file}} {{args}}',
+        requires: ['sbcl'],
+        note: '用 sbcl 以脚本模式运行'
+    },
+    {
+        id: 'emacslisp',
+        label: 'Emacs Lisp',
+        extensions: ['.el'],
+        command: 'emacs --script {{file}} {{args}}',
+        requires: ['emacs'],
+        note: '用 emacs --script 求值脚本'
+    },
+    {
+        id: 'janet',
+        label: 'Janet',
+        extensions: ['.janet'],
+        command: 'janet {{file}} {{args}}',
+        requires: ['janet'],
+        note: '用 janet 运行脚本'
+    },
+    {
+        id: 'fennel',
+        label: 'Fennel',
+        extensions: ['.fnl'],
+        command: 'fnl {{file}} {{args}}',
+        requires: ['fnl'],
+        note: '用 fnl 运行脚本'
+    },
+    {
+        id: 'hy',
+        label: 'Hy',
+        extensions: ['.hy'],
+        command: 'hy {{file}} {{args}}',
+        requires: ['hy'],
+        note: '用 hy 运行脚本'
+    },
+    {
+        id: 'nushell',
+        label: 'Nushell',
+        extensions: ['.nu'],
+        command: 'nu {{file}} {{args}}',
+        requires: ['nu'],
+        note: '用 nu 运行脚本'
+    },
+    {
+        id: 'fish',
+        label: 'Fish',
+        extensions: ['.fish'],
+        command: 'fish {{file}} {{args}}',
+        requires: ['fish'],
+        note: '用 fish 执行脚本'
+    },
+    {
+        id: 'csh',
+        label: 'C Shell',
+        extensions: ['.csh', '.tcsh'],
+        command: 'tcsh {{file}} {{args}}',
+        requires: ['tcsh'],
+        note: '用 tcsh 执行 C Shell 脚本'
+    },
+    {
+        id: 'ksh',
+        label: 'Korn Shell',
+        extensions: ['.ksh'],
+        command: 'ksh {{file}} {{args}}',
+        requires: ['ksh'],
+        note: '用 ksh 执行脚本'
+    },
+    {
+        id: 'escript',
+        label: 'Erlang escript',
+        extensions: ['.es'],
+        command: 'escript {{file}} {{args}}',
+        requires: ['escript'],
+        note: '用 escript 运行脚本'
+    },
+    {
+        id: 'coffeescript',
+        label: 'CoffeeScript',
+        extensions: ['.coffee', '.litcoffee'],
+        command: 'coffee {{file}} {{args}}',
+        requires: ['coffee'],
+        note: '用 coffee 编译并运行脚本'
+    },
+    {
+        id: 'raku',
+        label: 'Raku',
+        extensions: ['.raku', '.p6', '.pl6'],
+        command: 'raku {{file}} {{args}}',
+        requires: ['raku'],
+        note: '用 raku 运行脚本'
+    },
+    {
+        id: 'applescript',
+        label: 'AppleScript',
+        extensions: ['.applescript', '.scpt'],
+        command: 'osascript {{file}} {{args}}',
+        requires: ['osascript'],
+        note: '用 osascript 执行 AppleScript'
+    },
+    {
+        id: 'vimscript',
+        label: 'Vim Script',
+        extensions: ['.vim'],
+        command: 'nvim -u NONE -S {{file}} {{args}}',
+        requires: ['nvim'],
+        note: '用 nvim 不加载配置地执行脚本'
+    },
+    {
+        id: 'autohotkey',
+        label: 'AutoHotkey',
+        extensions: ['.ahk'],
+        command: 'AutoHotkey {{file}} {{args}}',
+        requires: ['AutoHotkey'],
+        note: '用 AutoHotkey 执行脚本'
+    },
+    {
+        id: 'autoit',
+        label: 'AutoIt',
+        extensions: ['.au3'],
+        command: 'AutoIt3 {{file}} {{args}}',
+        requires: ['AutoIt3'],
+        note: '用 AutoIt3 执行脚本'
+    },
+    {
+        id: 'prolog',
+        label: 'Prolog',
+        extensions: ['.pro'],
+        command: 'swipl {{file}} {{args}}',
+        requires: ['swipl'],
+        note: '用 swipl 运行 Prolog 程序'
+    },
+    {
+        id: 'standardml',
+        label: 'Standard ML',
+        extensions: ['.sml', '.sig'],
+        command: 'mlton {{file}} {{args}}',
+        requires: ['mlton'],
+        note: '用 mlton 编译并运行'
+    },
+    {
+        id: 'wolfram',
+        label: 'Wolfram Language',
+        extensions: ['.wl', '.wls'],
+        command: 'wolframscript {{file}} {{args}}',
+        requires: ['wolframscript'],
+        note: '用 wolframscript 运行脚本'
+    },
+    {
+        id: 'qml',
+        label: 'QML',
+        extensions: ['.qml'],
+        command: 'qmlscene {{file}} {{args}}',
+        requires: ['qmlscene'],
+        note: '用 qmlscene 运行 QML 界面'
+    },
+
+    // ------------------------------------------------------------------
+    // 编译型
+    // ------------------------------------------------------------------
+    {
+        id: 'crystal',
+        label: 'Crystal',
+        extensions: ['.cr'],
+        command: 'crystal {{file}} {{args}}',
+        compiled: true,
+        note: '用 crystal 编译并直接运行'
+    },
+    {
+        id: 'dlang',
+        label: 'D',
+        extensions: ['.d'],
+        command: 'dmd {{file}} -ofile && ./{{basename}}',
+        compiled: true,
+        requires: ['dmd'],
+        note: '用 dmd 编译后运行生成的可执行文件'
+    },
+    {
+        id: 'odin',
+        label: 'Odin',
+        extensions: ['.odin'],
+        command: 'odin run {{file}} {{args}}',
+        requires: ['odin'],
+        note: '用 odin run 直接编译并运行'
+    },
+    {
+        id: 'vlang',
+        label: 'V',
+        // .v 归 Verilog（更常用），V 只能通过「选择该文件的运行方式」手动指定
+        extensions: [],
+        command: 'v run {{file}} {{args}}',
+        requires: ['v'],
+        note: '用 v run 直接编译并运行'
+    },
+    {
+        id: 'fortran',
+        label: 'Fortran',
+        extensions: ['.f90', '.f95', '.f03', '.f'],
+        command: 'gfortran {{file}} -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['gfortran'],
+        note: '用 gfortran 编译，再运行生成的产物'
+    },
+    {
+        id: 'pascal',
+        label: 'Pascal',
+        extensions: ['.pas', '.pp'],
+        command: 'fpc {{file}} -o{{out}} && {{out}}',
+        compiled: true,
+        requires: ['fpc'],
+        note: '用 fpc 编译，再运行生成的产物'
+    },
+    {
+        id: 'ada',
+        label: 'Ada',
+        extensions: ['.adb', '.ads'],
+        command: 'gnatmake {{file}} -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['gnatmake'],
+        note: '用 gnatmake 编译，再运行生成的产物'
+    },
+    {
+        id: 'vhdl',
+        label: 'VHDL',
+        extensions: ['.vhd', '.vhdl'],
+        command: 'ghdl -o {{out}} {{file}} && {{out}}',
+        compiled: true,
+        requires: ['ghdl'],
+        note: '用 ghdl 分析并运行 VHDL 设计'
+    },
+    {
+        id: 'assembly',
+        label: 'Assembly',
+        extensions: ['.asm', '.s'],
+        command: 'nasm -f elf64 {{file}} -o {{out}}.o && ld {{out}}.o -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['nasm'],
+        note: '用 nasm 汇编、ld 链接后运行'
+    },
+    {
+        id: 'elm',
+        label: 'Elm',
+        extensions: ['.elm'],
+        command: 'elm make {{file}} --output={{out}}.js && node {{out}}.js',
+        compiled: true,
+        requires: ['elm'],
+        note: '用 elm make 编译成 JS，再交给 node 运行'
+    },
+    {
+        id: 'vala',
+        label: 'Vala',
+        extensions: ['.vala'],
+        command: 'valac {{file}} -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['valac'],
+        note: '用 valac 编译，再运行生成的产物'
+    },
+    {
+        id: 'cuda',
+        label: 'CUDA',
+        extensions: ['.cu'],
+        command: 'nvcc {{file}} -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['nvcc'],
+        note: '用 nvcc 编译 CUDA 源码，再运行生成的产物'
+    },
+    {
+        id: 'pony',
+        label: 'Pony',
+        extensions: ['.pony'],
+        command: 'ponyc {{file}} -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['ponyc'],
+        note: '用 ponyc 编译，再运行生成的产物'
+    },
+    {
+        id: 'chapel',
+        label: 'Chapel',
+        extensions: ['.chpl'],
+        command: 'chpl {{file}} -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['chpl'],
+        note: '用 chpl 编译，再运行生成的产物'
+    },
+    {
+        id: 'ballerina',
+        label: 'Ballerina',
+        extensions: ['.bal'],
+        command: 'bal run {{file}}',
+        requires: ['bal'],
+        note: '用 bal run 直接编译并运行'
+    },
+    {
+        id: 'agda',
+        label: 'Agda',
+        extensions: ['.agda'],
+        command: 'agda {{file}} {{args}}',
+        requires: ['agda'],
+        note: '用 agda 做类型检查并运行'
+    },
+    {
+        id: 'idris',
+        label: 'Idris',
+        extensions: ['.idr'],
+        command: 'idris {{file}} -o {{out}}',
+        compiled: true,
+        requires: ['idris'],
+        note: '用 idris 编译成可执行文件'
+    },
+    {
+        id: 'nix',
+        label: 'Nix',
+        extensions: ['.nix'],
+        command: 'nix run {{file}} {{args}}',
+        requires: ['nix'],
+        note: '用 nix run 执行 Nix 文件'
+    },
+    {
+        id: 'glsl',
+        label: 'GLSL',
+        extensions: ['.glsl', '.vert', '.frag'],
+        command: 'glslangValidator {{file}}',
+        requires: ['glslangValidator'],
+        note: '用 glslangValidator 校验着色器语法'
+    },
+    {
+        id: 'wat',
+        label: 'WebAssembly Text',
+        extensions: ['.wat'],
+        command: 'wat2wasm {{file}} -o {{out}}.wasm',
+        compiled: true,
+        requires: ['wat2wasm'],
+        note: '用 wat2wasm 编译成 wasm 字节码'
+    },
+
+    // ------------------------------------------------------------------
+    // 模板 / 视图 / 样式类
+    // ------------------------------------------------------------------
+    {
+        id: 'sass',
+        label: 'Sass',
+        extensions: ['.scss', '.sass'],
+        command: 'sass {{file}} {{out}}.css',
+        requires: ['sass'],
+        note: '用 sass 编译成 CSS'
+    },
+    {
+        id: 'less',
+        label: 'Less',
+        extensions: ['.less'],
+        command: 'lessc {{file}} {{out}}.css',
+        requires: ['lessc'],
+        note: '用 lessc 编译成 CSS'
+    },
+    {
+        id: 'stylus',
+        label: 'Stylus',
+        extensions: ['.styl'],
+        command: 'stylus {{file}} {{out}}.css',
+        requires: ['stylus'],
+        note: '用 stylus 编译成 CSS'
+    },
+    {
+        id: 'handlebars',
+        label: 'Handlebars',
+        extensions: ['.hbs', '.handlebars'],
+        command: 'hbs {{file}}',
+        requires: ['hbs'],
+        note: '用 hbs 预编译 Handlebars 模板'
+    },
+    {
+        id: 'ejs',
+        label: 'EJS',
+        extensions: ['.ejs'],
+        command: 'ejs {{file}}',
+        requires: ['ejs'],
+        note: '用 ejs 渲染模板'
+    },
+    {
+        id: 'pug',
+        label: 'Pug',
+        extensions: ['.pug', '.jade'],
+        command: 'pug {{file}}',
+        requires: ['pug'],
+        note: '用 pug 渲染模板'
+    },
+    {
+        id: 'mustache',
+        label: 'Mustache',
+        extensions: ['.mustache'],
+        command: 'mustache {{file}}',
+        requires: ['mustache'],
+        note: '用 mustache 渲染模板'
+    },
+    {
+        id: 'liquid',
+        label: 'Liquid',
+        extensions: ['.liquid'],
+        command: 'liquid {{file}}',
+        requires: ['liquid'],
+        note: '用 liquid 渲染模板'
+    },
+    {
+        id: 'nunjucks',
+        label: 'Nunjucks',
+        extensions: ['.njk'],
+        command: 'nunjucks {{file}}',
+        requires: ['nunjucks'],
+        note: '用 nunjucks 渲染模板'
+    },
+    {
+        id: 'twig',
+        label: 'Twig',
+        extensions: ['.twig'],
+        command: 'twig {{file}}',
+        requires: ['twig'],
+        note: '用 twig 渲染模板'
+    },
+    {
+        id: 'jinja2',
+        label: 'Jinja2',
+        extensions: ['.j2', '.jinja2'],
+        command: 'jinja2 {{file}}',
+        requires: ['jinja2'],
+        note: '用 jinja2 渲染模板'
+    },
+    {
+        id: 'mako',
+        label: 'Mako',
+        extensions: ['.mako'],
+        command: 'mako {{file}}',
+        requires: ['mako'],
+        note: '用 mako 渲染模板'
+    },
+    {
+        id: 'erb',
+        label: 'ERB',
+        extensions: ['.erb'],
+        command: 'erb {{file}}',
+        requires: ['erb'],
+        note: '用 erb 渲染模板'
+    },
+    {
+        id: 'haml',
+        label: 'Haml',
+        extensions: ['.haml'],
+        command: 'haml {{file}}',
+        requires: ['haml'],
+        note: '用 haml 渲染模板'
+    },
+    {
+        id: 'slim',
+        label: 'Slim',
+        extensions: ['.slim'],
+        command: 'slim {{file}}',
+        requires: ['slim'],
+        note: '用 slim 渲染模板'
+    },
+    {
+        id: 'asciidoc',
+        label: 'AsciiDoc',
+        extensions: ['.adoc'],
+        command: 'asciidoctor {{file}}',
+        requires: ['asciidoctor'],
+        note: '用 asciidoctor 转换 AsciiDoc 文档'
+    },
+
+    // ------------------------------------------------------------------
+    // 工程 / 杂项
+    // ------------------------------------------------------------------
+    {
+        id: 'justfile',
+        label: 'Justfile',
+        extensions: ['.justfile'],
+        command: 'just {{file}}',
+        note: '用 just 执行指定的 Justfile'
+    },
+    {
+        id: 'taskfile',
+        label: 'Taskfile',
+        extensions: ['.taskfile'],
+        command: 'task {{file}}',
+        note: '用 task 执行指定的 Taskfile'
+    },
+    {
+        id: 'rakefile',
+        label: 'Rakefile',
+        extensions: ['.rakefile', '.rake'],
+        command: 'rake {{file}}',
+        note: '用 rake 执行指定的 Rakefile'
+    },
+    {
+        id: 'terraform',
+        label: 'Terraform',
+        extensions: ['.tf', '.tfvars', '.hcl'],
+        command: 'terraform fmt {{file}}',
+        note: '用 terraform fmt 格式化配置'
+    },
+    {
+        id: 'csv',
+        label: 'CSV',
+        extensions: ['.csv'],
+        command: 'column -s, -t {{file}}',
+        note: '用 column 把 CSV 排成对齐表格'
+    },
+    {
+        id: 'objective-cpp',
+        label: 'Objective-C++',
+        extensions: ['.mm'],
+        command: 'clang++ -framework Foundation {{file}} -o {{out}} && {{out}}',
+        compiled: true,
+        requires: ['clang++'],
+        note: '用 clang++ 链接 Foundation 框架后运行'
     }
 ];

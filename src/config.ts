@@ -39,6 +39,8 @@ export interface RunnerConfig {
     showWarnings: boolean;
     /** 运行后是否聚焦终端。 */
     focusTerminalAfterRun: boolean;
+    /** 是否把源文件内容通过 stdin 喂给程序（命令前置 cat <file> |）。 */
+    pipeFileToStdin: boolean;
 }
 
 const SECTION = 'polyRunner';
@@ -65,7 +67,8 @@ export function getConfig(scope?: vscode.Uri): RunnerConfig {
         useTempFileForSelection: cfg.get<boolean>('useTempFileForSelection', true) ?? true,
         runOnSave: cfg.get<boolean>('runOnSave', false) ?? false,
         showWarnings: cfg.get<boolean>('showWarnings', true) ?? true,
-        focusTerminalAfterRun: cfg.get<boolean>('focusTerminalAfterRun', true) ?? true
+        focusTerminalAfterRun: cfg.get<boolean>('focusTerminalAfterRun', true) ?? true,
+        pipeFileToStdin: cfg.get<boolean>('pipeFileToStdin', false) ?? false
     };
 }
 

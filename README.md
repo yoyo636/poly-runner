@@ -28,10 +28,11 @@ javac /path/to/Main.java && java -cp /path/to Main
 
 ## 能力
 
-- **51 种语言**内置默认运行命令，覆盖编译型、脚本型、标记型语言。
+- **117 种语言**内置默认运行命令，覆盖 168 个文件扩展名：编译型、脚本型、函数式、模板、标记型全覆盖。
 - **两种执行通道**：集成终端（可交互）/ 输出面板（捕获输出 + 超时保护）。
 - **三层识别**：用户绑定 → VS Code 文件类型 → 扩展名 → 脚本 shebang，认不出来时现场问你。
 - **命令模板机制**：`{{file}}` `{{out}}` `{{compiler}}` `{{args}}` 等 14 个变量，任何语言都能自定义命令。
+- **项目级运行**：识别 package.json / Cargo.toml / go.mod / pom.xml / CMakeLists.txt 等，一键跑整个项目（`Cmd+Alt+P`）。
 - **运行前依赖检测**：编译器 / 解释器没装会提前提示，而不是让终端里飘一句 `command not found`。
 - **运行选中的代码**：片段写成临时文件，编译型语言自动带上原目录的 `-I`。
 - **一键停止**：终端发 Ctrl+C，输出面板模式杀整个进程组。
@@ -42,13 +43,15 @@ javac /path/to/Main.java && java -cp /path/to Main
 
 | 类别 | 语言 |
 | --- | --- |
-| 编译型 | C、C++、C#、F#、Objective-C、Rust、Go、Swift、Kotlin、Scala、Groovy、Dart、Haskell、Julia、Elixir、OCaml、Nim、Zig、Verilog |
-| 脚本型 | Python、JavaScript、TypeScript、Shell、PowerShell、Batch、Ruby、PHP、Perl、Python、Lua、Tcl、Awk、R |
+| 编译型 | C、C++、C#、F#、Objective-C、Objective-C++、Rust、Go、Swift、Kotlin、Scala、Groovy、Dart、Haskell、Julia、Elixir、OCaml、Nim、Zig、Verilog、VHDL、Fortran、Pascal、Ada、Assembly、CUDA、Elm、Vala、Pony、Chapel、Idris |
+| 脚本型 | Python、JavaScript、TypeScript、CoffeeScript、Shell、Fish、Nushell、ksh、csh、PowerShell、Batch、Ruby、PHP、Perl、Raku、Lua、Tcl、Awk、R、V、Crystal |
+| 函数式 | Clojure、Erlang、Racket、Scheme、Common Lisp、Emacs Lisp、Janet、Fennel、Hy、Standard ML、Prolog |
 | JVM | Java、Kotlin、Scala、Groovy |
-| 标记型 | JSON、YAML、XML、HTML、Markdown、LaTeX、SQL、GraphQL |
-| 工程 | Dockerfile、Makefile、CMake、Vue、Svelte、Astro |
+| 模板/样式 | Sass、Less、Stylus、Handlebars、EJS、Pug、Mustache、Liquid、Nunjucks、Twig、Jinja2、Mako、ERB、Haml、Slim、AsciiDoc |
+| 标记型 | JSON、YAML、XML、HTML、Markdown、LaTeX、SQL、GraphQL、CSV |
+| 工程 | Dockerfile、Makefile、CMake、Justfile、Taskfile、Rakefile、Terraform、Nix、Vue、Svelte、Astro |
 
-完整清单见 `src/languages.ts`，随时可以加。
+共 **117 条语言条目、168 个文件扩展名**。完整清单见 `src/languages.ts`，随时可以加。
 
 ## 命令
 
@@ -59,6 +62,7 @@ javac /path/to/Main.java && java -cp /path/to Main
 | `Poly Runner: 在集成终端运行当前文件` | 强制终端模式 | — |
 | `Poly Runner: 在输出面板运行当前文件` | 强制输出面板模式 | `Cmd+Alt+B` / `Ctrl+Alt+B` |
 | `Poly Runner: 停止正在运行的程序` | Ctrl+C / 杀进程 | `Cmd+Alt+.` / `Ctrl+Alt+.` |
+| `Poly Runner: 运行当前项目` | 识别 package.json / Cargo.toml / go.mod 等并运行项目 | `Cmd+Alt+P` / `Ctrl+Alt+P` |
 | `Poly Runner: 打开运行终端` | 只开终端 | `Cmd+Alt+O` / `Ctrl+Alt+O` |
 | `Poly Runner: 选择该文件的运行方式` | 换一种运行方式并记住 | — |
 | `Poly Runner: 编辑当前语言的运行命令` | 打开设置改命令 | — |
@@ -89,6 +93,7 @@ javac /path/to/Main.java && java -cp /path/to Main
 | `polyRunner.useTempFileForSelection` | boolean | `true` | 跑选区时写临时文件 |
 | `polyRunner.runOnSave` | boolean | `false` | 保存即运行 |
 | `polyRunner.showWarnings` | boolean | `true` | 开启 `-Wall` / `/W3` |
+| `polyRunner.pipeFileToStdin` | boolean | `false` | 把源文件内容通过 stdin 喂给程序 |
 
 ### 命令模板变量
 
@@ -107,6 +112,7 @@ javac /path/to/Main.java && java -cp /path/to Main
 | `{{warnings}}` | `-Wall` 或空串 |
 | `{{args}}` | 附加运行参数 |
 | `{{className}}` | 源码里解析出的类名（Java/Kotlin/Scala） |
+| `{{pipeFile}}` | stdin 管道前缀：`cat <file> | `（需开启 `polyRunner.pipeFileToStdin`） |
 
 路径类变量由插件自动做 shell 转义，**模板里不要自己加引号**。
 
@@ -125,6 +131,40 @@ javac /path/to/Main.java && java -cp /path/to Main
   "polyRunner.languageAliases": {
     ".foo": "python",
     "shellscript": "shellscript"
+  }
+}
+```
+
+## 运行整个项目
+
+有些代码不是单文件能跑通的。插件会从当前文件所在目录**向上查找**项目标志文件，识别出项目类型并给出对应命令：
+
+| 标志文件 | 项目 | 执行的命令 |
+| --- | --- | --- |
+| `package.json` | Node.js | `npm run <脚本>`（自动挑 `start`/`dev`/`serve`/`build`/`test`，否则第一个脚本） |
+| `deno.json` | Deno | `deno task <任务>` |
+| `Cargo.toml` | Rust | `cargo run` |
+| `go.mod` | Go | `go run .` |
+| `pom.xml` | Maven | `mvn -q package` |
+| `build.gradle` | Gradle | `./gradlew run`（有 wrapper 时） |
+| `CMakeLists.txt` | CMake | `cmake -S . -B build && cmake --build build` |
+| `Makefile` | Make | `make` |
+| `justfile` | just | `just` |
+| `Taskfile.yml` | Task | `task` |
+| `Rakefile` | Rake | `rake` |
+| `mix.exs` | Elixir Mix | `mix run` |
+| `*.sln` / `*.csproj` | .NET | `dotnet run` |
+
+命令会在**项目根目录**执行，所以 `npm run` 之类的相对路径行为和你在项目里手动敲完全一致。
+
+## 把文件内容当 stdin 喂给程序
+
+打开 `polyRunner.pipeFileToStdin`，命令会变成 `cat <文件> | <原命令>`；也可以在自定义命令里用 `{{pipeFile}}` 变量精确控制：
+
+```json
+{
+  "polyRunner.customCommands": {
+    "json": "{{pipeFile}}jq ."
   }
 }
 ```
@@ -182,7 +222,8 @@ src/
   extension.ts   命令注册、状态栏、保存即运行、缺失依赖提示
   runner.ts      语言识别 → 模板渲染 → 调度执行
   template.ts    占位符渲染、shell 转义、shebang/类名识别
-  languages.ts   51 种语言的默认命令表
+  languages.ts   117 种语言的默认命令表
+  projects.ts    项目级运行识别（package.json / Cargo.toml / go.mod …）
   compiler.ts    C/C++ 编译器探测与版本读取
   executor.ts    输出面板模式：捕获输出、超时、进程组终止
   terminal.ts    集成终端管理（sendText、cd、Ctrl+C）

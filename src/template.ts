@@ -33,6 +33,8 @@ export interface TemplateContext {
     args: string;
     /** 源码里解析出的类名（Java/Kotlin/Scala）。 */
     className: string;
+    /** stdin 管道前缀：开启时为 `cat <file> | `，否则为空串。 */
+    pipeFile: string;
 }
 
 /** 需要做 shell 转义再替换的占位符。 */
@@ -50,7 +52,7 @@ const QUOTED_KEYS = new Set([
 ]);
 
 /** 原样替换的占位符。 */
-const RAW_KEYS = new Set(['std', 'warnings', 'args', 'className']);
+const RAW_KEYS = new Set(['std', 'warnings', 'args', 'className', 'pipeFile']);
 
 /**
  * POSIX / Windows 通用的 shell 路径转义。
